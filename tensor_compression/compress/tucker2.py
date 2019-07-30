@@ -51,10 +51,10 @@ class Tucker2DecomposedLayer():
             else:
                 ranks = -ranks
                 if  '__getitem__' in dir(self.layer):
-                    self.ranks = estimate_rank_for_compression_rate((self.layer[1].out_channels,
-                                                                     self.layer[1].in_channels,
-                                                                     *self.kernel_size),
-                                                                    rate = ranks,
+                    self.ranks = estimate_rank_for_compression_rate((self.layer[1].out_channels,\
+                                                                     self.layer[1].in_channels,\
+                                                                     *self.kernel_size),\
+                                                                    rate = ranks,\
                                                                     key = 'tucker2')
                 else:
                     self.ranks = estimate_rank_for_compression_rate((self.cout, self.cin, *self.kernel_size),

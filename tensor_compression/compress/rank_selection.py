@@ -87,7 +87,7 @@ def count_parameters(tensor_shape,
 
 
 def estimate_rank_for_compression_rate(tensor_shape,
-                                  rate = 2,
+                                  rate = 2.,
                                   key = 'tucker2'):
     '''
         Find max rank for which inequality (initial_count / decomposition_count > rate) holds true

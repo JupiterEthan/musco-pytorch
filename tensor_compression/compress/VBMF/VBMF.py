@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 from scipy.sparse.linalg import svds
 from scipy.optimize import minimize_scalar
+import time
 
 def VBMF(Y, cacb, sigma2=None, H=None):
     """Implementation of the analytical solution to Variational Bayes Matrix Factorization.
@@ -150,7 +151,7 @@ def VBsigma2(sigma2,L,M,cacb,s,residual):
 
 
 
-def EVBMF(Y, sigma2=None, H=None):
+def EVBMF(Y, sigma2=None, H=None, return_UV = False):
     """Implementation of the analytical solution to Empirical Variational Bayes Matrix Factorization.
 
     This function can be used to calculate the analytical solution to empirical VBMF. 
@@ -203,10 +204,17 @@ def EVBMF(Y, sigma2=None, H=None):
     tauubar = 2.5129*np.sqrt(alpha)
     
     #SVD of the input matrix, max rank of H
-    U,s,V = np.linalg.svd(Y)
-    U = U[:,:H]
-    s = s[:H]
-    V = V[:H].T 
+    start = time.time()
+    if return_UV:
+        U,s,V = np.linalg.svd(Y)
+        U = U[:,:H]
+        s = s[:H]
+        V = V[:H].T 
+    else:
+        _,s,_ = np.linalg.svd(Y)
+        s = s[:H]
+    end = time.time()
+    print('-------------------- SVD time: ', end - start)
 
     #Calculate residual
     residual = 0.
@@ -256,8 +264,14 @@ def EVBMF(Y, sigma2=None, H=None):
     post['sigma2'] = sigma2
     post['F'] = 0.5*(L*M*np.log(2*np.pi*sigma2) + (residual+np.sum(s**2))/sigma2 
                      + np.sum(M*np.log(tau+1) + L*np.log(tau/alpha +1) - M*tau))
+    
+    end_vbmf = time.time()
+    print('------------------- VBMF time : ', end_vbmf - start)
 
-    return U[:,:pos], np.diag(d), V[:,:pos], post
+    if return_UV:
+        return U[:,:pos], np.diag(d), V[:,:pos], post
+    else:
+        return None, np.diag(d), None, post
 
 def EVBsigma2(sigma2,L,M,s,residual,xubar):
     H = len(s)

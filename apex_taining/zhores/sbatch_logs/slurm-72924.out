@@ -1,0 +1,10 @@
+==========================================
+SLURM_JOB_ID = 72924
+SLURM_JOB_NODELIST = gn23
+SLURM_GPUS = 4
+SLURM_CPUS_ON_NODE = 36
+SLURM_JOB_PARTITION = gpu_big
+SLURM_TASK_PID = 176481
+==========================================
+/var/spool/slurmd/job72924/slurm_script: line 18: syntax error near unexpected token `newline'
+/var/spool/slurmd/job72924/slurm_script: line 18: `r) rank_selection=${OPTARG};;s '

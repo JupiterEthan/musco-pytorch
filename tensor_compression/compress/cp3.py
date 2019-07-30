@@ -37,6 +37,8 @@ class CP3DecomposedLayer():
                 
         self.weight, self.bias = self.get_weights_to_decompose()
         
+#         print("KERNEL SIZE", self.kernel_size, type(self.kernel_size[0]), type(self.kernel_size[1]))
+        
         if rank < 0:
             rank = -rank
             if  '__getitem__' in dir(self.layer):
@@ -49,6 +51,8 @@ class CP3DecomposedLayer():
                 self.rank = estimate_rank_for_compression_rate((self.cout, self.cin, *self.kernel_size),
                                             rate = rank,
                                             key = 'cp3')
+                
+        self.rank = int(self.rank)
         ##### create decomposed layers
         self.new_layers = nn.Sequential()
         
@@ -79,7 +83,7 @@ class CP3DecomposedLayer():
         layers.append(nn.Conv2d(in_channels = self.rank, 
                                     out_channels=self.rank,
                                     kernel_size = self.kernel_size,
-                                    groups = int(self.rank), 
+                                    groups = self.rank, 
                                     padding = self.padding,
                                     stride = self.stride))
        

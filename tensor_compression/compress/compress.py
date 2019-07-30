@@ -8,6 +8,8 @@ from .cp4 import CP4DecomposedLayer
 from .svd_layer import SVDDecomposedLayer
 import numpy as np
 
+from absl import logging
+
 
 def get_compressed_model(model, ranks=[], layer_names=[], decompositions=[],
                          pretrained=None,
@@ -20,7 +22,7 @@ def get_compressed_model(model, ranks=[], layer_names=[], decompositions=[],
     for i, (rank, layer_name, decomposition) in enumerate(zip(ranks, layer_names, decompositions)):
 
         if rank is not None:
-            print('Decompose layer', layer_name)
+            logging.info('Decompose layer {}'.format(layer_name))
             subm_names = layer_name.strip().split('.')
 
             ## model before 
@@ -48,7 +50,7 @@ def get_compressed_model(model, ranks=[], layer_names=[], decompositions=[],
                 new_ranks[i] = decomposed_layer.ranks
             except:
                 new_ranks[i] = decomposed_layer.rank
-            print('\t new rank: ', new_ranks[i])
+            logging.info('\t new rank: {}'.format(new_ranks[i]))
 
             if len(subm_names) > 1:
                 m = compressed_model.__getattr__(subm_names[0])
@@ -58,7 +60,7 @@ def get_compressed_model(model, ranks=[], layer_names=[], decompositions=[],
             else:
                 compressed_model.__setattr__(subm_names[-1], decomposed_layer.new_layers)
         else:
-            print('Skip layer', layer_name)
+            logging.info('Skip layer {}'.format(layer_name))
 
     if return_ranks:
         return compressed_model, new_ranks
