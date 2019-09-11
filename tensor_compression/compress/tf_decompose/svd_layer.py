@@ -1,5 +1,5 @@
 """
-Uses the result of Truncated SVD decomposition as weights instead of a src_matrix.
+Compresses fully-connected layer using TruncatedSVD decomposition.
 """
 
 import tensorflow as tf
@@ -9,21 +9,25 @@ from tensorflow.keras import layers
 
 class SVDLayer(layers.Layer):
     """
-        This class returns a layer that contains of three sequential matrices U, S, V.
-        These matrices are the result of TruncatedSVD decomposition of 'src_matrix'.
+        This class compute the result using U, S, V -- the result of TruncatedSVD(src_matrix).
+        If 'src_matrix' has size M x N then:
+        - U has size [..., M, rank]
+        - S has size [..., rank, rank]
+        - V has size [..., N, rank]
+        It adds an original bias vector after x*U*S*V.T computation to the result.
     """
 
-    def __init__(self, src_matrix, bias, rank=None):
-        """ Returns a layer that is a result of SVD decomposition of the source one.
+    def __init__(self, src_matrix, bias, rank=None, **kwargs):
+        """ Returns a layer that is a result of SVD decomposition of 'src_matrix'.
 
-        :param src_matrix: tensor of a fully connected layer.
-        :param bias: bias vector.
-        :param rank: if it's not None launch truncated SVD, apply just SVD otherwise.
+        :param src_matrix: a kernel of a fully connected layer.
+        :param bias: a bias vector.
+        :param rank: if it's not None launch TruncatedSVD, apply just SVD otherwise.
         """
-        super(SVDLayer, self).__init__()
+        super(SVDLayer, self).__init__(**kwargs)
         s, u, v = tf.linalg.svd(src_matrix, full_matrices=False, compute_uv=True)
 
-        # Leave only first 'rank' singular values (Truncated SVD)
+        # Truncate decomposition if we need that
         if rank is not None:
             u = u[..., :rank]
             s = s[..., :rank]
@@ -38,6 +42,7 @@ class SVDLayer(layers.Layer):
         self.s = tf.Variable(initial_value=s, name='S')
         self.v = tf.Variable(initial_value=v, name='V')
 
+        # Bias vector from the source fully-connected layer.
         self.bias = tf.Variable(initial_value=bias, name="bias")
 
     def call(self, inputs, **kwargs):
