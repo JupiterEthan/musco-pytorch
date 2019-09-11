@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from tensorflow import keras
 from compress_model import get_compressed_model
 

@@ -29,16 +29,17 @@ def get_compressed_model(model, decompose_info):
     x = model_input
 
     for idx, layer in enumerate(model.layers):
-        new_layer = layer
-        if layer.name in decompose_info:
-            decompose, decomp_rank = decompose_info[layer.name]
-            if decompose.lower() == 'svd':
-                logging.info('SVD layer {}'.format(layer.name))
-                new_layer = SVDLayer(*layer.get_weights(), rank=decomp_rank)
-            else:
-                logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
+        if layer.name not in decompose_info:
+            x = layer(x)
+            continue
 
-        x = new_layer(x)
+        decompose, decomp_rank = decompose_info[layer.name]
+        if decompose.lower() == 'svd':
+            logging.info('SVD layer {}'.format(layer.name))
+            x = SVDLayer(*layer.get_weights(), rank=decomp_rank)(x)
+        else:
+            logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
+            raise NameError("Wrong Decomposition Name. You should use one of: ['svd', 'cp3', 'cp4', 'tucker-2']")
 
     return keras.Model(model_input, x)
 
