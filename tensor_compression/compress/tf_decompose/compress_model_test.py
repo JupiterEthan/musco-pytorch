@@ -38,3 +38,6 @@ if __name__ == "__main__":
     print('Evaluate compressed model')
     test_loss, test_acc = compressed_model.evaluate(test_images, test_labels, verbose=0)
     print('Test accuracy:', test_acc)
+
+    for layer in compressed_model.layers:
+        print(layer.name)
