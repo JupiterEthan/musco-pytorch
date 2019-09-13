@@ -162,16 +162,26 @@ def get_cp_factors(layer, weights, bias, rank, cin, cout, kernel_size):
 
 
 def get_layers_for_factors(cout, rank, kernel_size, padding, strides):
-    return [layers.Conv2D, layers.Conv2D, layers.Conv2D], [{'kernel_size': (1, 1),
-                                                            'filters': rank,
-                                                            },
-                                                           {'kernel_size': kernel_size,
-                                                            'padding': padding,
-                                                            'strides': strides,
-                                                            'filters': rank,
-                                                            },
-                                                           {'kernel_size': (1, 1),
-                                                            'filters': cout}]
+    return [layers.Conv2D, layers.DepthwiseConv2D, layers.Conv2D], [{'kernel_size': (1, 1),
+                                                                     'filters': rank,
+                                                                     },
+                                                                    {'kernel_size': kernel_size,
+                                                                     'padding': padding,
+                                                                     'strides': strides,
+                                                                     'use_bias': False,
+                                                                     },
+                                                                    {'kernel_size': (1, 1),
+                                                                     'filters': cout}]
+    # return [layers.Conv2D, layers.Conv2D, layers.Conv2D], [{'kernel_size': (1, 1),
+    #                                                         'filters': rank,
+    #                                                         },
+    #                                                        {'kernel_size': kernel_size,
+    #                                                         'padding': padding,
+    #                                                         'strides': strides,
+    #                                                         'filters': rank,
+    #                                                         },
+    #                                                        {'kernel_size': (1, 1),
+    #                                                         'filters': cout}]
 
 
 def get_config(layer):
@@ -190,14 +200,26 @@ def get_config(layer):
     return conf
 
 
-def build_sequence(layer, weights, biases, layers, layer_confs, conf):
+def build_sequence(layer, weights, biases, layer_classes, layer_confs, conf):
     layer_seq = keras.Sequential(name=layer.name)
-    for idx, (weight, bias, layer_class, layer_conf) in enumerate(zip(weights, biases, layers, layer_confs)):
-        new_layer = layer_class(name="{}-{}".format(layer.name, idx),
-                                kernel_initializer=tf.constant_initializer(to_tf_kernel_order(weight)),
-                                bias_initializer=None if bias is None else tf.constant_initializer(bias),
-                                **layer_conf,
-                                **conf)
+    for idx, (weight, bias, layer_class, layer_conf) in enumerate(zip(weights, biases, layer_classes, layer_confs)):
+        # print(layer_class.__name__)
+        if layer_class.__name__ == 'DepthwiseConv2D':
+            # [batch, out_height, out_width, in_channels * channel_multiplier]
+            # weight = np.transpose(weight,  (2, 3, 0, 1))
+            weight = to_tf_kernel_order(weight)
+            new_layer = layers.DepthwiseConv2D(name="{}-{}".format(layer.name, idx),
+                                               **layer_conf,
+                                               # kernel_initializer=tf.constant_initializer(weight),
+                                               )
+        else:
+            # weight = np.transpose(weight,  (2, 3, 0, 1))
+            weight = to_tf_kernel_order(weight)
+            new_layer = layer_class(name="{}-{}".format(layer.name, idx),
+                                    # kernel_initializer=tf.constant_initializer(weight),
+                                    bias_initializer='zeros' if idx == 0 else tf.constant_initializer(bias),
+                                    **layer_conf,
+                                    **conf)
         layer_seq.add(new_layer)
     return layer_seq
 
