@@ -6,7 +6,7 @@ from absl import logging
 from tensorflow import keras
 
 from svd_layer import get_svd_seq
-from cp3_layer import get_cp3_seq
+from cp3_decomposition import get_cp3_seq
 
 
 def get_compressed_model(model, decompose_info):
@@ -31,12 +31,12 @@ def get_compressed_model(model, decompose_info):
                            Possible decompositions are: 'svd', 'cp3', 'cp4', 'tucker-2'.
     :return: new tf.keras.Model with compressed layers.
     """
-    model_input = model.input
-    x = model_input
-
+    x = model.input
+    new_model = keras.Sequential([])
     for idx, layer in enumerate(model.layers):
         if layer.name not in decompose_info:
             x = layer(x)
+            new_model.add(layer)
             continue
 
         decompose, decomp_rank = decompose_info[layer.name]
@@ -46,13 +46,13 @@ def get_compressed_model(model, decompose_info):
                 x = svd_layer(x)
         elif decompose.lower() == 'cp3':
             logging.info('CP3 layer {}'.format(layer.name))
-            x = get_cp3_seq(layer, rank=decomp_rank)(x)
-            # for layer in get_cp3_seq(layer, rank=decomp_rank).layers:
-            #     x = layer(x)
+            new_layer = get_cp3_seq(layer, rank=decomp_rank)
+            x = new_layer(x)
+            new_model.add(new_layer)
         else:
             logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
             raise NameError("Wrong Decomposition Name. You should use one of: ['svd', 'cp3', 'cp4', 'tucker-2']")
 
-    return keras.Model(model_input, x)
-
+    # return keras.Model(model.input, x)
+    return new_model
 

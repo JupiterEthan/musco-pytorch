@@ -12,37 +12,12 @@ from cpd import recompress_ncpd_tensor
 from utils import to_tf_kernel_order, to_pytorch_kernel_order
 
 
-def check_layer_type(layer):
-    return isinstance(layer, (keras.Sequential, layers.Conv2D))
-
-
-def check_data_format(layer):
-    if isinstance(layer, keras.Sequential):
-        return any(layer.data_format != 'channel_last' for layer in layer.layers)
-    elif isinstance(layer, layers.Conv2D):
-        return layer.data_format != 'channel_last'
-
-
-def check_layer(layer):
-    if not check_layer_type(layer):
-        raise TypeError("This function in only applicable to "
-                        "{} or {}. "
-                        "But this one is {}".format(keras.Sequential.__name__,
-                                                    layers.Conv2D.__name__,
-                                                    type(layer)))
-    if not check_data_format(layer):
-        raise Exception("channel_last is only supported but "
-                        "current model has {}. ".format(layer.data_format))
-
-
 def get_conv_params(layer):
     """
 
     :param layer:
     :return:
     """
-    check_layer(layer)
-
     if isinstance(layer, keras.Sequential):
         if any(layer.data_format != 'channels_last' for layer in layer.layers):
             raise Exception("channel_last is only supported.")
@@ -86,23 +61,22 @@ def get_weights_and_bias(layer):
              Note that all weights are returned in PyTorch dimension order:
              [out_channels, in_channels, kernel_size[0]*kernel_size[1]]
     """
-    check_layer(layer)
     if isinstance(layer, keras.Sequential):
-        w_cin, bias_cin = to_pytorch_kernel_order(layer.layers[0].get_weights())
-        w_z, bias_z = to_pytorch_kernel_order(layer.layers[1].get_weights())
-        w_cout, bias_cout = to_pytorch_kernel_order(layer.layers[2].get_weights())
+        w_cin, _ = layer.layers[0].get_weights()
+        w_z = layer.layers[1].get_weights()[0]
+        w_cout, bias = layer.layers[2].get_weights()
 
-        bias = bias_cout
+        w_cin, w_cout = [to_pytorch_kernel_order(w) for w in [w_cin, w_cout]]
+        w_z = np.transpose(w_z, (2, 3, 0, 1))
 
         # Reshape 4D tensors into 4D matrix.
         # w_cin and w_cout have two dimension of size 1.
         # w_z has second dimension that is equal to 1.
+        w_cin = w_cin.reshape(w_cin.shape[:2]).T
+        w_cout = w_cout.reshape(w_cout.shape[:2])
         w_z = w_z.reshape((w_z.shape[0], np.prod(w_z.shape[2:]))).T
-        w_cin = np.squeeze(w_cin).T
-        w_cout = np.squeeze(w_cout)
 
         weights = [w_cout, w_cin, w_z]
-
     elif isinstance(layer, layers.Conv2D):
         weights, bias = layer.get_weights()
         weights = to_pytorch_kernel_order(weights)
@@ -124,8 +98,6 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     :param kwergs:
     :return:
     """
-    check_layer(layer)
-
     weights, bias = get_weights_and_bias(layer)
 
     if isinstance(layer, keras.Sequential):
@@ -137,9 +109,7 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     elif isinstance(layer, layers.Conv2D):
         P, _, _ = cp_als(dtensor(weights), rank, init='random')
 
-        w_cout = np.array(P.U[0])
-        w_cin = np.array(P.U[1])
-        w_z = (np.array(P.U[2]) * (P.lmbda))
+        w_cin, w_cout, w_z = extract_weights_tensors(P)
 
     # Reshape to the proper PyTorch shape order
     w_cin = w_cin.T.reshape((rank, cin, 1, 1))
@@ -152,25 +122,31 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     return [w_cin, w_z, w_cout], [None, None, bias]
 
 
+def extract_weights_tensors(P):
+    w_cout = np.array(P.U[0])
+    w_cin = np.array(P.U[1])
+    w_z = (np.array(P.U[2]) * (P.lmbda))
+    return w_cin, w_cout, w_z
+
+
 def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, **kwargs):
     # TODO: return another result for sequence
     return [layers.Conv2D, layers.Conv2D, layers.Conv2D], [{'kernel_size': (1, 1),
                                                             'filters': rank,
+                                                            'batch_input_shape': (None, 28, 28, 1)
                                                             },
                                                            {'kernel_size': kernel_size,
                                                             'padding': padding,
                                                             'strides': strides,
-                                                            'filters': rank,
+                                                            'filters': 1,
                                                             },
                                                            {'kernel_size': (1, 1),
                                                             'filters': cout}]
 
 
 def get_config(layer):
-    check_layer(layer)
-
     if isinstance(layer, keras.Sequential):
-        conf = layer.layers[0].get_config()
+        conf = layer.layers[0].get_config() # TODO fix that
     elif isinstance(layer, layers.Conv2D):
         conf = layer.get_config()
 
@@ -182,4 +158,8 @@ def get_config(layer):
     return conf
 
 
-get_cp3_seq = construct_compressor(get_conv_params, get_cp_factors, get_layers_params_for_factors, get_config)
+get_cp3_seq = construct_compressor(get_conv_params,
+                                   get_cp_factors,
+                                   get_layers_params_for_factors,
+                                   get_config,
+                                   (layers.Conv2D, keras.Sequential))
