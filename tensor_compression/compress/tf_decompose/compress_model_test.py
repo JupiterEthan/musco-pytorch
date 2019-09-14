@@ -93,7 +93,7 @@ def test_cp3(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = get_compressed_model(model, {
-        'conv2d': ('cp3', 2),
+        'conv2d': ('cp3', 50),
     })
 
     compressed_model.compile(optimizer='adam',
@@ -112,4 +112,4 @@ def test_cp3(take_first=None):
 
 #TODO: write regular tests
 if __name__ == "__main__":
-    test_cp3(500)
+    test_cp3(100)

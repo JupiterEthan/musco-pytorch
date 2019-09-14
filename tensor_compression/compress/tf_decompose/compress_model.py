@@ -46,9 +46,9 @@ def get_compressed_model(model, decompose_info):
                 x = svd_layer(x)
         elif decompose.lower() == 'cp3':
             logging.info('CP3 layer {}'.format(layer.name))
-            # x = get_cp3_seq(layer, rank=decomp_rank)(x)
-            for layer in get_cp3_seq(layer, rank=decomp_rank).layers:
-                x = layer(x)
+            x = get_cp3_seq(layer, rank=decomp_rank)(x)
+            # for layer in get_cp3_seq(layer, rank=decomp_rank).layers:
+            #     x = layer(x)
         else:
             logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
             raise NameError("Wrong Decomposition Name. You should use one of: ['svd', 'cp3', 'cp4', 'tucker-2']")
