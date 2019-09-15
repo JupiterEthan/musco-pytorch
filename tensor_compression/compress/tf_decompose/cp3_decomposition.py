@@ -36,6 +36,9 @@ def get_conv_params(layer):
         last_layer = layer.layers[-1]
         cin = first_layer.input_shape[-1] if first_layer.data_format == 'channels_last' else first_layer.input_shape[0]
         cout = last_layer.output_shape[-1] if last_layer.data_format == 'channels_last' else last_layer.output_shape[0]
+
+        batch_input_shape = first_layer.get_config()['batch_input_shape']
+
     elif isinstance(layer, layers.Conv2D):
         cin = layer.input_shape[-1] if layer.data_format == 'channels_last' else layer.input_shape[0]
         cout = layer.output_shape[-1] if layer.data_format == 'channels_last' else layer.output_shape[0]
@@ -43,12 +46,14 @@ def get_conv_params(layer):
         kernel_size = layer_conf['kernel_size']
         padding = layer_conf['padding']
         strides = layer_conf['strides']
+        batch_input_shape = layer_conf['batch_input_shape']
 
     return {'cin': cin,
             'cout': cout,
             'kernel_size': kernel_size,
             'padding': padding,
-            'strides': strides}
+            'strides': strides,
+            'batch_input_shape': batch_input_shape}
 
 
 def get_weights_and_bias(layer):
@@ -67,6 +72,10 @@ def get_weights_and_bias(layer):
         w_cout, bias = layer.layers[2].get_weights()
 
         w_cin, w_cout = [to_pytorch_kernel_order(w) for w in [w_cin, w_cout]]
+
+        # The middle layer is depthwise it should have order
+        # [rank, 1, kernel_size, kernel_size]
+        # This reorders it correctly from TensorFlow order to PyTorch order
         w_z = np.transpose(w_z, (2, 3, 0, 1))
 
         # Reshape 4D tensors into 4D matrix.
@@ -117,7 +126,12 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     w_cout = w_cout.reshape((cout, rank, 1, 1))
 
     # Reorder to TensorFlow order
-    w_cin, w_z, w_cout = [to_tf_kernel_order(w) for w in [w_cin, w_z, w_cout]]
+    w_cin, w_cout = [to_tf_kernel_order(w) for w in [w_cin, w_cout]]
+
+    # The middle layer is depthwise it should have order
+    # [rank, 1, kernel_size, kernel_size]
+    # This reorders it correctly from TensorFlow order to PyTorch order
+    w_z = np.transpose(w_z, (2, 3, 0, 1))
 
     return [w_cin, w_z, w_cout], [None, None, bias]
 
@@ -129,33 +143,38 @@ def extract_weights_tensors(P):
     return w_cin, w_cout, w_z
 
 
-def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, **kwargs):
-    # TODO: return another result for sequence
-    return [layers.Conv2D, layers.Conv2D, layers.Conv2D], [{'kernel_size': (1, 1),
-                                                            'filters': rank,
-                                                            'batch_input_shape': (None, 28, 28, 1)
-                                                            },
-                                                           {'kernel_size': kernel_size,
-                                                            'padding': padding,
-                                                            'strides': strides,
-                                                            'filters': 1,
-                                                            },
-                                                           {'kernel_size': (1, 1),
-                                                            'filters': cout}]
+def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, **kwargs):
+    return [layers.Conv2D, layers.DepthwiseConv2D, layers.Conv2D], [{'kernel_size': (1, 1),
+                                                                     'filters': rank,
+                                                                     'batch_input_shape': batch_input_shape
+                                                                     },
+                                                                    {'kernel_size': kernel_size,
+                                                                     'padding': padding,
+                                                                     'strides': strides,
+                                                                     'use_bias': False,
+                                                                     },
+                                                                    {'kernel_size': (1, 1),
+                                                                     'filters': cout}]
 
 
-def get_config(layer):
+def get_config(layer, copy_conf):
     if isinstance(layer, keras.Sequential):
-        conf = layer.layers[0].get_config() # TODO fix that
+        confs = [l.get_config() for l in layer.layers]
     elif isinstance(layer, layers.Conv2D):
-        conf = layer.get_config()
+        if copy_conf:
+            confs = [layer.get_config()]*3
+        else:
+            confs = [{}]*3
 
     # New layers have other 'units', 'kernel_initializer', 'bias_initializer' and 'name'.
     # That's why we delete them to prevent double definition.
-    del conf['kernel_initializer'], conf['bias_initializer'], conf['name']
-    del conf['kernel_size'], conf['padding'], conf['strides'], conf['filters']
+    for conf_idx, _ in enumerate(confs):
+        for key in ['kernel_initializer', 'bias_initializer', 'name', 'kernel_size', 'padding', 'strides', 'filters']:
+            if key not in confs[conf_idx]:
+                continue
+            del confs[conf_idx][key]
 
-    return conf
+    return confs
 
 
 get_cp3_seq = construct_compressor(get_conv_params,

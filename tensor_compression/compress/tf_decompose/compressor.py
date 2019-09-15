@@ -2,7 +2,6 @@
 import tensorflow as tf
 
 from tensorflow import keras
-from tensorflow.keras import layers
 
 
 def check_layer_type(layer, accepted_layers):
@@ -27,19 +26,26 @@ def check_layer(layer, accepted_layers):
                         "current model has {}. ".format(layer.data_format))
 
 
-def build_sequence(layer, weights, biases, layer_classes, layer_confs, conf):
+def del_redundant_keys(dict_1, dict_2):
+    del_keys = []
+    for key in dict_1:
+        if key not in dict_2:
+            continue
+        del_keys.append(key)
+
+    for key in del_keys:
+        del dict_1[key]
+
+    return dict_1
+
+
+def build_sequence(layer, weights, biases, layer_classes, layer_confs, confs):
     layer_seq = keras.Sequential(name=layer.name)
-    for idx, (weight, bias, layer_class, layer_conf) in enumerate(zip(weights, biases, layer_classes, layer_confs)):
-        if idx == 1:
-            new_layer = layers.DepthwiseConv2D(name="{}-{}".format(layer.name, idx),
-                                               kernel_size=(2, 2),
-                                               strides=layer_conf['strides'],
-                                               padding=layer_conf['padding'],
-                                               use_bias=False)
-        else:
-            new_layer = layer_class(name="{}-{}".format(layer.name, idx),
+    for idx, (weight, bias, layer_class, layer_conf, conf) in enumerate(zip(weights, biases, layer_classes, layer_confs, confs)):
+        conf = del_redundant_keys(conf, layer_conf)
+        new_layer = layer_class(name="{}-{}".format(layer.name, idx),
                                 kernel_initializer=tf.constant_initializer(weight),
-                                bias_initializer='zeros' if bias is None else tf.constant_initializer(bias),
+                                bias_initializer=None if bias is None else tf.constant_initializer(bias),
                                 **layer_conf,
                                 **conf)
         layer_seq.add(new_layer)
@@ -54,6 +60,7 @@ def construct_compressor(get_params, get_decomposer, get_factor_params, get_conf
     :param get_factor_params:
     :return:
     """
+
     def compressor(layer, rank, pretrained=None, copy_conf=False, **kwargs):
         """
 
@@ -70,7 +77,7 @@ def construct_compressor(get_params, get_decomposer, get_factor_params, get_conf
                                    weights,
                                    biases,
                                    *params_for_factors,
-                                   get_config(layer) if copy_conf else {})
+                                   get_config(layer, copy_conf))
         return layer_seq
 
     return compressor

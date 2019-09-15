@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.keras import layers
+from tensorflow import keras
 
 
 def get_svd_seq(dense_layer, rank=None, copy_conf=False):
@@ -46,7 +47,7 @@ def get_svd_seq(dense_layer, rank=None, copy_conf=False):
         del confs['units'], confs['kernel_initializer'], confs['bias_initializer'], confs['name']
 
     # Make a sequence of 3 smaller dense layers
-    svd_seq = [
+    svd_seq = keras.Sequential([
         layers.Dense(units=rank,
                      kernel_initializer=tf.constant_initializer(u),
                      bias_initializer=tf.zeros_initializer(),
@@ -59,7 +60,7 @@ def get_svd_seq(dense_layer, rank=None, copy_conf=False):
                      kernel_initializer=tf.constant_initializer(v_adj),
                      bias_initializer=tf.constant_initializer(bias),  # add a source bias to the last layer
                      **confs),
-    ]
+    ])
 
     return svd_seq
 

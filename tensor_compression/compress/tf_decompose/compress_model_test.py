@@ -4,12 +4,20 @@ import tensorflow as tf
 from tensorflow import keras
 from compress_model import get_compressed_model
 
-def test_svd():
+
+def test_svd(take_first=None):
     fashion_mnist = keras.datasets.fashion_mnist
     (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
 
     train_images = train_images / 255.0
     test_images = test_images / 255.0
+
+    if take_first is not None:
+        train_images = train_images[:take_first, ...]
+        train_labels = train_labels[:take_first, ...]
+
+        test_images = test_images[:take_first, ...]
+        test_labels = test_labels[:take_first, ...]
 
     model = keras.Sequential([
         keras.layers.Flatten(input_shape=(28, 28)),
@@ -29,8 +37,16 @@ def test_svd():
     print('Test accuracy:', test_acc)
 
     compressed_model = get_compressed_model(model, {
-                                                        'dense': ('svd', 750),
+                'dense': ('svd', 750),
     })
+
+    compressed_model.summary()
+
+    for layer in compressed_model.layers:
+        if layer.name == 'svd_layer':
+            print("?????", layer.u.get_shape())
+            print("?????", layer.s.get_shape())
+            print("?????", layer.v.get_shape())
 
     compressed_model.compile(optimizer='adam',
                   loss='sparse_categorical_crossentropy',
@@ -112,4 +128,4 @@ def test_cp3(take_first=None):
 
 #TODO: write regular tests
 if __name__ == "__main__":
-    test_cp3(100)
+    test_svd(1000)

@@ -127,20 +127,21 @@ def test_cp3_sequential(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = model
-    for _ in range(2):
+    ranks = [10, 5]
+    for idx in range(2):
         compressed_model = get_compressed_model(compressed_model, {
-            'conv2d': ('cp3', 50),
+            'conv2d': ('cp3', ranks[idx]),
         })
 
-    compressed_model.compile(optimizer='adam',
-                             loss='sparse_categorical_crossentropy',
-                             metrics=['accuracy'])
-    compressed_model.summary()
-    print('Evaluate compressed model')
-    test_loss, test_acc = compressed_model.evaluate(test_images,
-                                                    test_labels,
-                                                    verbose=0)
-    print('Test accuracy:', test_acc)
+        compressed_model.compile(optimizer='adam',
+                                 loss='sparse_categorical_crossentropy',
+                                 metrics=['accuracy'])
+        compressed_model.summary()
+        print('Evaluate compressed model')
+        test_loss, test_acc = compressed_model.evaluate(test_images,
+                                                        test_labels,
+                                                        verbose=0)
+        print('Test accuracy:', test_acc)
 
     for layer in compressed_model.layers:
         print(layer.name)
@@ -148,4 +149,4 @@ def test_cp3_sequential(take_first=None):
 
 #TODO: write regular tests
 if __name__ == "__main__":
-    test_cp3_sequential(100)
+    test_cp3_sequential(10000)
