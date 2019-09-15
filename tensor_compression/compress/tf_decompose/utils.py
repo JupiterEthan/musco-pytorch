@@ -21,3 +21,13 @@ def to_pytorch_kernel_order(tensor):
     []
     """
     return np.transpose(tensor, (3, 2, 0, 1))
+
+
+def del_keys(src_dict, del_keys):
+    """Deletes redundant_keys from conf.
+
+    :param src_dict: a dict
+    :param del_keys: a list/set/etc with key names that we want to delete.
+    :return: the copy of dict without keys from del_keys.
+    """
+    return {key: value for key, value in src_dict.items() if key not in del_keys}

@@ -67,9 +67,7 @@ def get_weights_and_bias(layer):
              [out_channels, in_channels, kernel_size[0]*kernel_size[1]]
     """
     if isinstance(layer, keras.Sequential):
-        w_cin, _ = layer.layers[0].get_weights()
-        w_z = layer.layers[1].get_weights()[0]
-        w_cout, bias = layer.layers[2].get_weights()
+        w_cin, _, w_z, w_cout, bias = layer.get_weights()
 
         w_cin, w_cout = [to_pytorch_kernel_order(w) for w in [w_cin, w_cout]]
 
