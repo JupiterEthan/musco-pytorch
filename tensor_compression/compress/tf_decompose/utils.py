@@ -23,6 +23,15 @@ def to_pytorch_kernel_order(tensor):
     return np.transpose(tensor, (3, 2, 0, 1))
 
 
+def depthwise_to_pytorch_kernel_order(tensor):
+    """
+
+    :param tensor:
+    :return:
+    """
+    return np.transpose(tensor, (2, 3, 0, 1))
+
+
 def del_keys(src_dict, del_keys):
     """Deletes redundant_keys from conf.
 

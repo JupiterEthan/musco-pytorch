@@ -7,6 +7,7 @@ from tensorflow import keras
 
 # from svd_layer import get_svd_seq, SVDLayer
 from cp3_decomposition import get_cp3_seq
+from cp4_decomposition import get_cp4_seq
 from svd_decomposition import get_svd_seq
 
 
@@ -47,6 +48,9 @@ def get_compressed_model(model, decompose_info):
         elif decompose.lower() == 'cp3':
             logging.info('CP3 layer {}'.format(layer.name))
             new_layer = get_cp3_seq(layer, rank=decomp_rank)
+        elif decompose.lower() == 'cp4':
+            logging.info('CP4 layer {}'.format(layer.name))
+            new_layer = get_cp4_seq(layer, rank=decomp_rank)
         else:
             logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
             raise NameError("Wrong Decomposition Name. You should use one of: ['svd', 'cp3', 'cp4', 'tucker-2']")

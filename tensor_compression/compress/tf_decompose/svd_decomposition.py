@@ -1,3 +1,5 @@
+"""SVD decomposition for Dense layer. Replace Dense to [Dense, Dense]."""
+
 import numpy as np
 
 from compressor import construct_compressor
@@ -10,6 +12,7 @@ from utils import del_keys
 def get_params(layer):
     params = dict()
     if isinstance(layer, keras.Sequential):
+        # Infer the original shape from shapes of two dense layers.
         u, sv_adj = layer.layers
         weights_shape = (u.get_weights()[0].shape[0], sv_adj.get_weights()[0].shape[-1])
     else:
@@ -18,30 +21,29 @@ def get_params(layer):
     return params
 
 
+def get_truncated_svd(weights, rank):
+    u, s, v_adj = np.linalg.svd(weights, full_matrices=False)
+
+    # Truncate ranks
+    u = u[..., :rank]
+    s = np.diag(s[..., :rank])
+    v_adj = v_adj.T[..., :rank].T
+
+    return u, s, v_adj
+
+
 def get_svd_factors(layer, rank, **kwargs):
     if isinstance(layer, keras.Sequential):
         U, U_b, SV_adj, SV_adj_bias = layer.get_weights()
 
-        u, s, v_adj = np.linalg.svd(U, full_matrices=False)
-
-        # Truncate ranks
-        u = u[..., :rank]
-        s = np.diag(s[..., :rank])
-        v_adj = v_adj.T[..., :rank].T
+        u, s, v_adj = get_truncated_svd(U, rank=rank)
 
         return [u, np.dot(np.dot(s, v_adj), SV_adj)], [None, SV_adj_bias]
     elif isinstance(layer, layers.Dense):
         weights, bias = layer.get_weights()
 
-        u, s, v_adj = np.linalg.svd(weights, full_matrices=False)
-
         # If rank is None take the original rank of weights.
-        rank = min(weights.shape) if rank is None else rank
-
-        # Truncate ranks
-        u = u[..., :rank]
-        s = np.diag(s[..., :rank])
-        v_adj = v_adj.T[..., :rank].T
+        u, s, v_adj = get_truncated_svd(weights, rank=min(weights.shape) if rank is None else rank)
 
         return [u, np.dot(s, v_adj)], [None, bias]
 

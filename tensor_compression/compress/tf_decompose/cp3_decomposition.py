@@ -1,6 +1,5 @@
-"""
-Compresses layers.Conv2D layer using CP3.
-"""
+"""CP3 decomposition for Conv2D layer. Replace Conv2D to [Conv2D, DepthwiseConv2D, Conv2D]."""
+
 import numpy as np
 
 from tensorflow import keras
@@ -19,25 +18,22 @@ def get_conv_params(layer):
     :return:
     """
     if isinstance(layer, keras.Sequential):
-        if any(layer.data_format != 'channels_last' for layer in layer.layers):
-            raise Exception("channel_last is only supported.")
-
         # If the layer has been decomposed at least once, then
         # the first layer in a sequence contains in_channels,
         # the second layer contains information about kernel_size, padding and strides,
         # the third layer contains information about out_channels.
-        conf_conv_2 = layer.layers[1].get_config()
+        layer_1, layer_2, layer_3 = layer.layers
 
-        kernel_size = conf_conv_2['kernel_size']
-        padding = conf_conv_2['padding']
-        strides = conf_conv_2['strides']
+        batch_input_shape = layer_1.get_config()['batch_input_shape']
 
-        first_layer = layer.layers[0]
-        last_layer = layer.layers[-1]
-        cin = first_layer.input_shape[-1] if first_layer.data_format == 'channels_last' else first_layer.input_shape[0]
-        cout = last_layer.output_shape[-1] if last_layer.data_format == 'channels_last' else last_layer.output_shape[0]
+        cin = layer_1.input_shape[-1] if layer_1.data_format == 'channels_last' else layer_1.input_shape[0]
+        cout = layer_3.output_shape[-1] if layer_3.data_format == 'channels_last' else layer_3.output_shape[0]
 
-        batch_input_shape = first_layer.get_config()['batch_input_shape']
+        conf_2 = layer_2.get_config()
+
+        kernel_size = conf_2['kernel_size']
+        padding = conf_2['padding']
+        strides = conf_2['strides']
 
     elif isinstance(layer, layers.Conv2D):
         cin = layer.input_shape[-1] if layer.data_format == 'channels_last' else layer.input_shape[0]
