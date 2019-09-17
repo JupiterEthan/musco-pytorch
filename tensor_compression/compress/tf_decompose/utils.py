@@ -11,6 +11,7 @@ def to_tf_kernel_order(tensor):
     []
     """
     return np.transpose(tensor, (2, 3, 1, 0))
+    # return np.transpose(tensor, (0, 2, 3, 1))
 
 
 def to_pytorch_kernel_order(tensor):
@@ -22,6 +23,14 @@ def to_pytorch_kernel_order(tensor):
     """
     return np.transpose(tensor, (3, 2, 0, 1))
 
+
+def depthwise_to_pytorch_kernel_order(tensor):
+    """
+
+    :param tensor:
+    :return:
+    """
+    return np.transpose(tensor, (2, 3, 0, 1))
 
 def depthwise_to_pytorch_kernel_order(tensor):
     """

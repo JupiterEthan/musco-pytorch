@@ -65,18 +65,13 @@ def get_weights_and_bias(layer):
     if isinstance(layer, keras.Sequential):
         w_cin, _, w_z, w_cout, bias = layer.get_weights()
 
-        w_cin, w_cout = [to_pytorch_kernel_order(w) for w in [w_cin, w_cout]]
-
-        # The middle layer is depthwise it should have order
-        # [rank, 1, kernel_size, kernel_size]
-        # This reorders it correctly from TensorFlow order to PyTorch order
-        w_z = np.transpose(w_z, (2, 3, 0, 1))
+        w_cin, w_z, w_cout = [to_pytorch_kernel_order(w) for w in [w_cin, w_z, w_cout]]
 
         # Reshape 4D tensors into 4D matrix.
         # w_cin and w_cout have two dimension of size 1.
         # w_z has second dimension that is equal to 1.
-        w_cin = w_cin.reshape(w_cin.shape[:2]).T
-        w_cout = w_cout.reshape(w_cout.shape[:2])
+        w_cin = np.transpose(w_cin.reshape(w_cin.shape[:2]), (1, 0))
+        w_cout = np.transpose(w_cout.reshape(w_cout.shape[:2]), (1, 0))
         w_z = w_z.reshape((w_z.shape[0], np.prod(w_z.shape[2:]))).T
 
         weights = [w_cout, w_cin, w_z]
@@ -120,12 +115,7 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     w_cout = w_cout.reshape((cout, rank, 1, 1))
 
     # Reorder to TensorFlow order
-    w_cin, w_cout = [to_tf_kernel_order(w) for w in [w_cin, w_cout]]
-
-    # The middle layer is depthwise it should have order
-    # [rank, 1, kernel_size, kernel_size]
-    # This reorders it correctly from TensorFlow order to PyTorch order
-    w_z = np.transpose(w_z, (2, 3, 0, 1))
+    w_cin, w_z, w_cout = [to_tf_kernel_order(w) for w in [w_cin, w_z, w_cout]]
 
     return [w_cin, w_z, w_cout], [None, None, bias]
 
@@ -133,7 +123,7 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
 def extract_weights_tensors(P):
     w_cout = np.array(P.U[0])
     w_cin = np.array(P.U[1])
-    w_z = (np.array(P.U[2]) * (P.lmbda))
+    w_z = np.array(P.U[2] * P.lmbda)
     return w_cin, w_cout, w_z
 
 

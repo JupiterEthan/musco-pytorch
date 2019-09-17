@@ -4,6 +4,8 @@ import tensorflow as tf
 from tensorflow import keras
 from compress_model import get_compressed_model
 
+np.random.seed(42)
+
 
 def test_cp4(take_first=None):
     fashion_mnist = keras.datasets.fashion_mnist
@@ -95,10 +97,10 @@ def test_cp4_sequential(take_first=None):
             tf.keras.layers.Conv2D(filters=32, kernel_size=2, padding='same', activation='relu'),
             tf.keras.layers.MaxPooling2D(pool_size=2),
             tf.keras.Sequential([
-            tf.keras.layers.Dropout(0.3),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(256, activation='relu'),
-            tf.keras.layers.Dropout(0.5)]),
+                tf.keras.layers.Dropout(0.3),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.Dense(256, activation='relu'),
+                tf.keras.layers.Dropout(0.5)]),
             tf.keras.layers.Dense(10, activation='softmax')
 
         ]
@@ -147,6 +149,6 @@ def test_cp4_sequential(take_first=None):
         print(layer.name)
 
 
-#TODO: write regular tests
+# TODO: write regular tests
 if __name__ == "__main__":
-    test_cp4()
+    test_cp4(1000)

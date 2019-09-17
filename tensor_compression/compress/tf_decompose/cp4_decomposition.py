@@ -63,7 +63,8 @@ def get_weights_and_bias(layer):
         # The middle layers are depthwise it should have order
         # [rank, 1, kernel_size, kernel_size]
         # This reorders it correctly from TensorFlow order to PyTorch order
-        w_h, w_w = depthwise_to_pytorch_kernel_order(w_h), depthwise_to_pytorch_kernel_order(w_w)
+        # w_h, w_w = depthwise_to_pytorch_kernel_order(w_h), depthwise_to_pytorch_kernel_order(w_w)
+        w_h, w_w = to_pytorch_kernel_order(w_h), to_pytorch_kernel_order(w_w)
 
         # TODO: add desc
         w_cin = w_cin.reshape(w_cin.shape[:2]).T
@@ -81,7 +82,7 @@ def get_weights_and_bias(layer):
 
 def extract_weights_tensors(P):
     w_cin = np.array(P.U[1])
-    w_w = np.array(P.U[3]) * (P.lmbda)
+    w_w = np.array(P.U[3] * P.lmbda)
     w_h = np.array(P.U[2])
     w_cout = np.array(P.U[0])
 
@@ -126,7 +127,8 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     # The middle layers are depthwise it should have order
     # [rank, 1, kernel_size, kernel_size]
     # This reorders it correctly from TensorFlow order to PyTorch order
-    w_h, w_w = [depthwise_to_pytorch_kernel_order(w) for w in [w_h, w_w]]
+    # w_h, w_w = [depthwise_to_pytorch_kernel_order(w) for w in [w_h, w_w]]
+    w_h, w_w = [to_tf_kernel_order(w) for w in [w_h, w_w]]
 
     return [w_cin, w_h, w_w, w_cout], [None, None, None, bias]
 
