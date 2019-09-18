@@ -52,7 +52,7 @@ def build_sequence(layer, weights, biases, layer_classes, layer_confs, confs):
     return layer_seq
 
 
-def construct_compressor(get_params, get_decomposer, get_factor_params, get_config, accepted_layers):
+def construct_compressor(get_params, get_rank, get_decomposer, get_factor_params, get_config, accepted_layers):
     """The protopyte of generator.
 
     :param get_params:
@@ -61,7 +61,7 @@ def construct_compressor(get_params, get_decomposer, get_factor_params, get_conf
     :return:
     """
 
-    def compressor(layer, rank, pretrained=None, copy_conf=False, **kwargs):
+    def compressor(layer, rank, pretrained=None, optimize_rank=False, copy_conf=False, **kwargs):
         """
 
         :param layer:
@@ -71,6 +71,8 @@ def construct_compressor(get_params, get_decomposer, get_factor_params, get_conf
         """
         check_layer_type(layer, accepted_layers)
         params = get_params(layer)
+        # if optimize_rank:
+        #     rank = get_rank(rank=rank, **params)
         weights, biases = get_decomposer(layer, rank, **params)
         params_for_factors = get_factor_params(rank=rank, **params)
         layer_seq = build_sequence(layer,

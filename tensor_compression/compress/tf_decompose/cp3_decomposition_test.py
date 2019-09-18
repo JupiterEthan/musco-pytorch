@@ -23,7 +23,7 @@ def test_cp3(take_first=None):
 
     model = tf.keras.Sequential(
         [
-            tf.keras.layers.Conv2D(filters=10, kernel_size=2, padding='same', activation='relu',
+            tf.keras.layers.Conv2D(filters=1, kernel_size=2, padding='same', activation='relu',
                                    input_shape=(28, 28, 1)),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(10, activation='softmax')
@@ -54,7 +54,7 @@ def test_cp3(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = get_compressed_model(model, {
-        'conv2d': ('cp3', 3),
+        'conv2d': ('cp3', 5),
     })
 
     compressed_model.compile(optimizer='adam',

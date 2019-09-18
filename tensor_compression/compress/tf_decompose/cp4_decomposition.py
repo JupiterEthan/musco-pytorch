@@ -171,6 +171,7 @@ def get_config(layer, copy_conf):
 
 
 get_cp4_seq = construct_compressor(get_conv_params,
+                                   None,
                                    get_cp_factors,
                                    get_layers_params_for_factors,
                                    get_config,

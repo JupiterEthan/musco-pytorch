@@ -30,10 +30,12 @@ def get_conv_params(layer):
         cout = layer_3.output_shape[-1] if layer_3.data_format == 'channels_last' else layer_3.output_shape[0]
 
         conf_2 = layer_2.get_config()
+        conf_3 = layer_3.get_config()
 
         kernel_size = conf_2['kernel_size']
         padding = conf_2['padding']
         strides = conf_2['strides']
+        activation = conf_3['activation']
 
     elif isinstance(layer, layers.Conv2D):
         cin = layer.input_shape[-1] if layer.data_format == 'channels_last' else layer.input_shape[0]
@@ -43,13 +45,15 @@ def get_conv_params(layer):
         padding = layer_conf['padding']
         strides = layer_conf['strides']
         batch_input_shape = layer_conf['batch_input_shape']
+        activation = layer_conf['activation']
 
     return {'cin': cin,
             'cout': cout,
             'kernel_size': kernel_size,
             'padding': padding,
             'strides': strides,
-            'batch_input_shape': batch_input_shape}
+            'batch_input_shape': batch_input_shape,
+            'activation': activation}
 
 
 def get_weights_and_bias(layer):
@@ -127,18 +131,21 @@ def extract_weights_tensors(P):
     return w_cin, w_cout, w_z
 
 
-def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, **kwargs):
+def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, activation, **kwargs):
     return [layers.Conv2D, layers.DepthwiseConv2D, layers.Conv2D], [{'kernel_size': (1, 1),
                                                                      'filters': rank,
-                                                                     'batch_input_shape': batch_input_shape
+                                                                     'batch_input_shape': batch_input_shape,
+                                                                     'padding': 'valid'
                                                                      },
                                                                     {'kernel_size': kernel_size,
-                                                                     'padding': padding,
+                                                                     'padding': 'same',
                                                                      'strides': strides,
                                                                      'use_bias': False,
                                                                      },
                                                                     {'kernel_size': (1, 1),
-                                                                     'filters': cout}]
+                                                                     'padding': 'valid',
+                                                                     'filters': cout,
+                                                                     'activation': activation}]
 
 
 def get_config(layer, copy_conf):
@@ -153,7 +160,8 @@ def get_config(layer, copy_conf):
     # New layers have other 'units', 'kernel_initializer', 'bias_initializer' and 'name'.
     # That's why we delete them to prevent double definition.
     for conf_idx, _ in enumerate(confs):
-        for key in ['kernel_initializer', 'bias_initializer', 'name', 'kernel_size', 'padding', 'strides', 'filters']:
+        for key in ['kernel_initializer', 'bias_initializer', 'name', 'kernel_size',
+                    'padding', 'strides', 'filters', 'activation']:
             if key not in confs[conf_idx]:
                 continue
             del confs[conf_idx][key]
@@ -162,6 +170,7 @@ def get_config(layer, copy_conf):
 
 
 get_cp3_seq = construct_compressor(get_conv_params,
+                                   None,
                                    get_cp_factors,
                                    get_layers_params_for_factors,
                                    get_config,
