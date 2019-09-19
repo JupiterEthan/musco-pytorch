@@ -58,7 +58,7 @@ def test_cp4(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = get_compressed_model(model, {
-        'conv2d': ('cp4', 10),
+        'conv2d': ('cp4', 4),
     })
 
     compressed_model.compile(optimizer='adam',
@@ -129,7 +129,7 @@ def test_cp4_sequential(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = model
-    ranks = [10, 5]
+    ranks = [5, 2]
     for idx in range(2):
         compressed_model = get_compressed_model(compressed_model, {
             'conv2d': ('cp4', ranks[idx]),
@@ -151,4 +151,5 @@ def test_cp4_sequential(take_first=None):
 
 # TODO: write regular tests
 if __name__ == "__main__":
-    test_cp4(1000)
+    # test_cp4(1000)
+    test_cp4_sequential(1000)

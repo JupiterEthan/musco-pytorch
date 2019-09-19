@@ -10,6 +10,8 @@ from compressor import construct_compressor
 from cpd import recompress_ncpd_tensor
 from utils import to_tf_kernel_order, to_pytorch_kernel_order
 
+from GroupConv2D import GroupConv2D
+
 
 def get_conv_params(layer):
     """
@@ -74,8 +76,8 @@ def get_weights_and_bias(layer):
         # Reshape 4D tensors into 4D matrix.
         # w_cin and w_cout have two dimension of size 1.
         # w_z has second dimension that is equal to 1.
-        w_cin = np.transpose(w_cin.reshape(w_cin.shape[:2]), (1, 0))
-        w_cout = np.transpose(w_cout.reshape(w_cout.shape[:2]), (1, 0))
+        w_cin = w_cin.reshape(w_cin.shape[:2]).T
+        w_cout = w_cout.reshape(w_cout.shape[:2])
         w_z = w_z.reshape((w_z.shape[0], np.prod(w_z.shape[2:]))).T
 
         weights = [w_cout, w_cin, w_z]
@@ -132,20 +134,23 @@ def extract_weights_tensors(P):
 
 
 def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, activation, **kwargs):
-    return [layers.Conv2D, layers.DepthwiseConv2D, layers.Conv2D], [{'kernel_size': (1, 1),
-                                                                     'filters': rank,
-                                                                     'batch_input_shape': batch_input_shape,
-                                                                     'padding': 'valid'
-                                                                     },
-                                                                    {'kernel_size': kernel_size,
-                                                                     'padding': 'same',
-                                                                     'strides': strides,
-                                                                     'use_bias': False,
-                                                                     },
-                                                                    {'kernel_size': (1, 1),
-                                                                     'padding': 'valid',
-                                                                     'filters': cout,
-                                                                     'activation': activation}]
+    return [layers.Conv2D, GroupConv2D, layers.Conv2D], [{'kernel_size': (1, 1),
+                                                          'filters': rank,
+                                                          'batch_input_shape': batch_input_shape,
+                                                          'padding': 'same'
+                                                          },
+                                                         {'rank': rank,
+                                                          'n_group': rank,
+                                                          'kernel_size': kernel_size,
+                                                          'padding': padding,
+                                                          'strides': strides,
+                                                          'use_bias': False,
+                                                         },
+                                                         {'kernel_size': (1, 1),
+                                                          'padding': 'same',
+                                                          'filters': cout,
+                                                          'activation': activation}
+                                                         ]
 
 
 def get_config(layer, copy_conf):
@@ -153,9 +158,9 @@ def get_config(layer, copy_conf):
         confs = [l.get_config() for l in layer.layers]
     elif isinstance(layer, layers.Conv2D):
         if copy_conf:
-            confs = [layer.get_config()]*3
+            confs = [layer.get_config()] * 3
         else:
-            confs = [{}]*3
+            confs = [{}] * 3
 
     # New layers have other 'units', 'kernel_initializer', 'bias_initializer' and 'name'.
     # That's why we delete them to prevent double definition.
@@ -174,4 +179,4 @@ get_cp3_seq = construct_compressor(get_conv_params,
                                    get_cp_factors,
                                    get_layers_params_for_factors,
                                    get_config,
-                                   (layers.Conv2D, keras.Sequential))
+                                   (layers.Conv2D, GroupConv2D, keras.Sequential))

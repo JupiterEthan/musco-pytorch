@@ -56,7 +56,7 @@ class GroupConv2D(layers.Layer):
         channel_axis = -1
 
         input_dim = int(input_shape[channel_axis])
-        kernel_shape = self.kernel_size + (input_shape[-1] / self.n_group, self.rank)
+        kernel_shape = self.kernel_size + (input_dim // self.n_group, self.rank)
 
         self.kernel = self.add_variable(name='kernel',
                                         shape=kernel_shape,
@@ -75,7 +75,8 @@ class GroupConv2D(layers.Layer):
                                           dtype=self.dtype)
         else:
             self.bias = None
-        self.input_spec = InputSpec(ndim=self.rank + 2,
+
+        self.input_spec = InputSpec(ndim=4,
                                     axes={channel_axis: input_dim})
         self.built = True
 
@@ -137,6 +138,7 @@ class GroupConv2D(layers.Layer):
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
-        base_config = super(layers.Layer, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        # base_config = super(layers.Layer, self).get_config()
+        return config
+        # return dict(list(base_config.items()) + list(config.items()))
 

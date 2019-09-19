@@ -23,7 +23,7 @@ def test_cp3(take_first=None):
 
     model = tf.keras.Sequential(
         [
-            tf.keras.layers.Conv2D(filters=1, kernel_size=2, padding='same', activation='relu',
+            tf.keras.layers.Conv2D(filters=4, kernel_size=5, padding='same', activation='relu',
                                    input_shape=(28, 28, 1)),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(10, activation='softmax')
@@ -120,7 +120,7 @@ def test_cp3_sequential(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = model
-    ranks = [10, 5]
+    ranks = [60, 3]
     for idx in range(2):
         compressed_model = get_compressed_model(compressed_model, {
             'conv2d': ('cp3', ranks[idx]),
@@ -142,4 +142,5 @@ def test_cp3_sequential(take_first=None):
 
 #TODO: write regular tests
 if __name__ == "__main__":
-    test_cp3(10000)
+    # test_cp3(10000)
+    test_cp3_sequential(10000)

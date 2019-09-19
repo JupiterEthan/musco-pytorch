@@ -5,9 +5,10 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from sktensor import dtensor, cp_als
 
+from GroupConv2D import GroupConv2D
 from compressor import construct_compressor
 from cpd import recompress_ncpd_tensor
-from utils import del_keys, to_tf_kernel_order, to_pytorch_kernel_order, depthwise_to_pytorch_kernel_order
+from utils import del_keys, to_tf_kernel_order, to_pytorch_kernel_order
 
 
 def get_conv_params(layer):
@@ -31,6 +32,7 @@ def get_conv_params(layer):
         kernel_size = (conf_2['kernel_size'][0], conf_3['kernel_size'][1])
         padding = conf_2['padding']
         strides = (conf_2['strides'][0], conf_3['strides'][1])
+        activation = conf_3['activation']
     elif isinstance(layer, layers.Conv2D):
         # TODO: this is tha same for CP3 and CP4
         cin = layer.input_shape[-1] if layer.data_format == 'channels_last' else layer.input_shape[0]
@@ -40,13 +42,15 @@ def get_conv_params(layer):
         padding = layer_conf['padding']
         strides = layer_conf['strides']
         batch_input_shape = layer_conf['batch_input_shape']
+        activation = layer_conf['activation']
 
     return {'cin': cin,
             'cout': cout,
             'kernel_size': kernel_size,
             'padding': padding,
             'strides': strides,
-            'batch_input_shape': batch_input_shape}
+            'batch_input_shape': batch_input_shape,
+            'activation': activation,}
 
 
 def get_weights_and_bias(layer):
@@ -133,24 +137,31 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
     return [w_cin, w_h, w_w, w_cout], [None, None, None, bias]
 
 
-def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, **kwargs):
-    return [layers.Conv2D, layers.DepthwiseConv2D, layers.DepthwiseConv2D, layers.Conv2D], \
+def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, activation, **kwargs):
+    return [layers.Conv2D, GroupConv2D, GroupConv2D, layers.Conv2D], \
            [{'kernel_size': (1, 1),
              'filters': rank,
-             'batch_input_shape': batch_input_shape
+             'batch_input_shape': batch_input_shape,
+             'padding': 'same',
              },
-            {'kernel_size': (kernel_size[0], 1),
+            {'rank': rank,
+             'n_group': rank,
+             'kernel_size': (kernel_size[0], 1),
              'padding': padding,
              'strides': (strides[0], 1),
              'use_bias': False,
              },
-            {'kernel_size': (1, kernel_size[1]),
+            {'rank': rank,
+             'n_group': rank,
+             'kernel_size': (1, kernel_size[1]),
              'padding': padding,
              'strides': (1, strides[1]),
              'use_bias': False,
              },
             {'kernel_size': (1, 1),
-             'filters': cout}]
+             'filters': cout,
+             'padding': 'same',
+             'activation': activation}]
 
 
 def get_config(layer, copy_conf):

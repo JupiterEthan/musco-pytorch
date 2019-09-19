@@ -45,7 +45,7 @@ def build_sequence(layer, weights, biases, layer_classes, layer_confs, confs):
         conf = del_redundant_keys(conf, layer_conf)
         new_layer = layer_class(name="{}-{}".format(layer.name, idx),
                                 kernel_initializer=tf.constant_initializer(weight),
-                                bias_initializer=None if bias is None else tf.constant_initializer(bias),
+                                bias_initializer='zeros' if bias is None else tf.constant_initializer(bias),
                                 **layer_conf,
                                 **conf)
         layer_seq.add(new_layer)
