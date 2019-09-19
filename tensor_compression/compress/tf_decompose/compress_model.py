@@ -11,7 +11,7 @@ from cp4_decomposition import get_cp4_seq
 from svd_decomposition import get_svd_seq
 
 
-def get_compressed_model(model, decompose_info):
+def get_compressed_model(model, decompose_info, optimize_rank=False):
     """Compresses source model using decompositions from decompose_info dict.
 
     For example if decompose_info = {
@@ -47,7 +47,9 @@ def get_compressed_model(model, decompose_info):
             new_layer = get_svd_seq(layer, rank=decomp_rank)
         elif decompose.lower() == 'cp3':
             logging.info('CP3 layer {}'.format(layer.name))
-            new_layer = get_cp3_seq(layer, rank=decomp_rank)
+            new_layer = get_cp3_seq(layer,
+                                    rank=decomp_rank,
+                                    optimize_rank=optimize_rank)
         elif decompose.lower() == 'cp4':
             logging.info('CP4 layer {}'.format(layer.name))
             new_layer = get_cp4_seq(layer, rank=decomp_rank)

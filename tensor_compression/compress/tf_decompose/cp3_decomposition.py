@@ -8,6 +8,7 @@ from sktensor import dtensor, cp_als
 
 from compressor import construct_compressor
 from cpd import recompress_ncpd_tensor
+from rank_selection import estimate_rank_for_compression_rate
 from utils import to_tf_kernel_order, to_pytorch_kernel_order
 
 from GroupConv2D import GroupConv2D
@@ -174,8 +175,21 @@ def get_config(layer, copy_conf):
     return confs
 
 
+def get_rank(rank, cin, cout, kernel_size, **kwargs):
+    """
+
+    :param rank:
+    :param cin:
+    :param cout:
+    :param kernel_size:
+    :param kwargs:
+    :return:
+    """
+    return estimate_rank_for_compression_rate((cout, cin, *kernel_size), rate=rank, key='cp3')
+
+
 get_cp3_seq = construct_compressor(get_conv_params,
-                                   None,
+                                   get_rank,
                                    get_cp_factors,
                                    get_layers_params_for_factors,
                                    get_config,
