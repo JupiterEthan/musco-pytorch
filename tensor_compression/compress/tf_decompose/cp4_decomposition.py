@@ -18,18 +18,21 @@ def get_conv_params(layer):
     :param layer:
     :return:
     """
+    batch_input_shape = None
     if isinstance(layer, keras.Sequential):
         # If the layer has been decomposed at least once, then
         # the first layer in a sequence contains in_channels,
         # the second layer contains information about kernel_size, padding and strides,
         # the third layer contains information about out_channels.
         layer_1, layer_2, layer_3, layer_4 = layer.layers
+        conf_1, conf_2, conf_3 = layer_1.get_config(), layer_2.get_config(), layer_3.get_config()
+        if 'batch_input_shape' in conf_1:
+            batch_input_shape = conf_1['batch_input_shape']
 
         batch_input_shape = layer_1.get_config()['batch_input_shape']
         cin = layer_1.input_shape[-1] if layer_1.data_format == 'channels_last' else layer_1.input_shape[0]
         cout = layer_4.output_shape[-1] if layer_4.data_format == 'channels_last' else layer_4.output_shape[0]
 
-        conf_2, conf_3 = layer_2.get_config(), layer_3.get_config()
         kernel_size = (conf_2['kernel_size'][0], conf_3['kernel_size'][1])
         padding = conf_2['padding']
         strides = (conf_2['strides'][0], conf_3['strides'][1])
@@ -42,8 +45,9 @@ def get_conv_params(layer):
         kernel_size = layer_conf['kernel_size']
         padding = layer_conf['padding']
         strides = layer_conf['strides']
-        batch_input_shape = layer_conf['batch_input_shape']
         activation = layer_conf['activation']
+        if 'batch_input_shape' in layer_conf:
+            batch_input_shape = layer_conf['batch_input_shape']
 
     return {'cin': cin,
             'cout': cout,
@@ -51,7 +55,7 @@ def get_conv_params(layer):
             'padding': padding,
             'strides': strides,
             'batch_input_shape': batch_input_shape,
-            'activation': activation,}
+            'activation': activation}
 
 
 def get_weights_and_bias(layer):
@@ -139,30 +143,34 @@ def get_cp_factors(layer, rank, cin, cout, kernel_size, **kwargs):
 
 
 def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, activation, **kwargs):
-    return [layers.Conv2D, GroupConv2D, GroupConv2D, layers.Conv2D], \
-           [{'kernel_size': (1, 1),
-             'filters': rank,
-             'batch_input_shape': batch_input_shape,
-             'padding': 'same',
-             },
-            {'rank': rank,
-             'n_group': rank,
-             'kernel_size': (kernel_size[0], 1),
-             'padding': padding,
-             'strides': (strides[0], 1),
-             'use_bias': False,
-             },
-            {'rank': rank,
-             'n_group': rank,
-             'kernel_size': (1, kernel_size[1]),
-             'padding': padding,
-             'strides': (1, strides[1]),
-             'use_bias': False,
-             },
-            {'kernel_size': (1, 1),
-             'filters': cout,
-             'padding': 'same',
-             'activation': activation}]
+    new_layers = [layers.Conv2D, GroupConv2D, GroupConv2D, layers.Conv2D]
+    params = [{'kernel_size': (1, 1),
+               'filters': rank,
+               'padding': 'same',
+               },
+              {'rank': rank,
+               'n_group': rank,
+               'kernel_size': (kernel_size[0], 1),
+               'padding': padding,
+               'strides': (strides[0], 1),
+               'use_bias': False,
+               },
+              {'rank': rank,
+               'n_group': rank,
+               'kernel_size': (1, kernel_size[1]),
+               'padding': padding,
+               'strides': (1, strides[1]),
+               'use_bias': False,
+               },
+              {'kernel_size': (1, 1),
+               'filters': cout,
+               'padding': 'same',
+               'activation': activation}]
+
+    if batch_input_shape is not None:
+        params[0]['batch_input_shape'] = batch_input_shape
+
+    return new_layers, params
 
 
 def get_config(layer, copy_conf):

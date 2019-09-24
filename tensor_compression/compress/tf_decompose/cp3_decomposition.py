@@ -20,20 +20,22 @@ def get_conv_params(layer):
     :param layer:
     :return:
     """
+    batch_input_shape = None
     if isinstance(layer, keras.Sequential):
         # If the layer has been decomposed at least once, then
         # the first layer in a sequence contains in_channels,
         # the second layer contains information about kernel_size, padding and strides,
         # the third layer contains information about out_channels.
         layer_1, layer_2, layer_3 = layer.layers
+        conf_1, conf_2, conf_3 = layer_1.get_config(), layer_2.get_config(), layer_3.get_config()
 
-        batch_input_shape = layer_1.get_config()['batch_input_shape']
+        if 'batch_input_shape' in conf_1:
+            batch_input_shape = conf_1['batch_input_shape']
 
         cin = layer_1.input_shape[-1] if layer_1.data_format == 'channels_last' else layer_1.input_shape[0]
         cout = layer_3.output_shape[-1] if layer_3.data_format == 'channels_last' else layer_3.output_shape[0]
 
-        conf_2 = layer_2.get_config()
-        conf_3 = layer_3.get_config()
+
 
         kernel_size = conf_2['kernel_size']
         padding = conf_2['padding']
@@ -47,8 +49,10 @@ def get_conv_params(layer):
         kernel_size = layer_conf['kernel_size']
         padding = layer_conf['padding']
         strides = layer_conf['strides']
-        batch_input_shape = layer_conf['batch_input_shape']
         activation = layer_conf['activation']
+
+        if 'batch_input_shape' in layer_conf:
+            batch_input_shape = layer_conf['batch_input_shape']
 
     return {'cin': cin,
             'cout': cout,
@@ -135,23 +139,28 @@ def extract_weights_tensors(P):
 
 
 def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, batch_input_shape, activation, **kwargs):
-    return [layers.Conv2D, GroupConv2D, layers.Conv2D], [{'kernel_size': (1, 1),
-                                                          'filters': rank,
-                                                          'batch_input_shape': batch_input_shape,
-                                                          'padding': 'same'
-                                                          },
-                                                         {'rank': rank,
-                                                          'n_group': rank,
-                                                          'kernel_size': kernel_size,
-                                                          'padding': padding,
-                                                          'strides': strides,
-                                                          'use_bias': False,
-                                                         },
-                                                         {'kernel_size': (1, 1),
-                                                          'padding': 'same',
-                                                          'filters': cout,
-                                                          'activation': activation}
-                                                         ]
+    new_layers = [layers.Conv2D, GroupConv2D, layers.Conv2D]
+    params = [{'kernel_size': (1, 1),
+               'filters': rank,
+               'padding': 'same'
+               },
+              {'rank': rank,
+               'n_group': rank,
+               'kernel_size': kernel_size,
+               'padding': padding,
+               'strides': strides,
+               'use_bias': False,
+               },
+              {'kernel_size': (1, 1),
+               'padding': 'same',
+               'filters': cout,
+               'activation': activation}
+              ]
+
+    if batch_input_shape is not None:
+        params[0]['batch_input_shape'] = batch_input_shape
+
+    return new_layers, params
 
 
 def get_config(layer, copy_conf):

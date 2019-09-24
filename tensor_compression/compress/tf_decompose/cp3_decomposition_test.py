@@ -54,7 +54,7 @@ def test_cp3(take_first=None):
     print('Test accuracy:', test_acc)
 
     compressed_model = get_compressed_model(model, {
-        'conv2d': ('cp3', 5),
+        'conv2d': ('cp3', 4),
     })
 
     compressed_model.compile(optimizer='adam',
@@ -207,6 +207,6 @@ def test_cp3_sequential(take_first=None):
 
 #TODO: write regular tests
 if __name__ == "__main__":
-    # test_cp3(10000)
+    test_cp3(10000)
     # test_cp3_sequential(10000)
-    test_cp3_optimize_rank(1000)
+    # test_cp3_optimize_rank(1000)
