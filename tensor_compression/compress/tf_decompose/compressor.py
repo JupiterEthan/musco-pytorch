@@ -73,7 +73,7 @@ def construct_compressor(get_params, get_rank, get_decomposer, get_factor_params
         params = get_params(layer)
         if optimize_rank and get_rank is not None:
             rank = get_rank(rank=rank, **params)
-            rank = rank if rank != 0 else 0
+            rank = rank if rank != 0 else 1
         weights, biases = get_decomposer(layer, rank, **params)
         params_for_factors = get_factor_params(rank=rank, **params)
         layer_seq = build_sequence(layer,
