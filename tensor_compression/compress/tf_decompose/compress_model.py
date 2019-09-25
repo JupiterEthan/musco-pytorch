@@ -53,10 +53,14 @@ def get_compressed_model(model, decompose_info, optimize_rank=False):
                                     optimize_rank=optimize_rank)
         elif decompose.lower() == 'cp4':
             logging.info('CP4 layer {}'.format(layer.name))
-            new_layer = get_cp4_seq(layer, rank=decomp_rank)
+            new_layer = get_cp4_seq(layer,
+                                    rank=decomp_rank,
+                                    optimize_rank=optimize_rank)
         elif decompose.lower() == 'tucker2':
             logging.info('Tucker2 layer {}'.format(layer.name))
-            new_layer = get_tucker2_seq(layer, rank=decomp_rank)
+            new_layer = get_tucker2_seq(layer,
+                                        rank=decomp_rank,
+                                        optimize_rank=optimize_rank)
         else:
             logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
             raise NameError("Wrong Decomposition Name. You should use one of: ['svd', 'cp3', 'cp4', 'tucker-2']")
