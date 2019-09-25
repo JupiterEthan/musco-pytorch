@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from tensorflow import keras
-from compress_model import get_compressed_model
+from compress_model import get_compressed_sequential
 
 
 def test_svd(take_first=None):
@@ -35,7 +35,7 @@ def test_svd(take_first=None):
     test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=0)
     print('Test accuracy:', test_acc)
 
-    compressed_model = get_compressed_model(model, {
+    compressed_model = get_compressed_sequential(model, {
                         'dense': ('svd', 300),
     })
 
@@ -84,7 +84,7 @@ def test_svd_iterative(take_first=None):
     ranks = [750, 350]
     compressed_model = model
     for idx in range(2):
-        compressed_model = get_compressed_model(compressed_model, {
+        compressed_model = get_compressed_sequential(compressed_model, {
                             'dense': ('svd', ranks[idx]),
         })
 

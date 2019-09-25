@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow import keras
-from compress_model import get_compressed_model
+from compress_model import get_compressed_sequential
 
 np.random.seed(42)
 
@@ -53,7 +53,7 @@ def test_cp3(take_first=None):
                                          verbose=0)
     print('Test accuracy:', test_acc)
 
-    compressed_model = get_compressed_model(model, {
+    compressed_model = get_compressed_sequential(model, {
         'conv2d': ('cp3', 4),
     })
 
@@ -119,7 +119,7 @@ def test_cp3_optimize_rank(take_first=None):
                                          verbose=0)
     print('Test accuracy:', test_acc)
 
-    compressed_model = get_compressed_model(model, {
+    compressed_model = get_compressed_sequential(model, {
         'conv2d': ('cp3', 5),
     }, optimize_rank=True)
 
@@ -187,7 +187,7 @@ def test_cp3_sequential(take_first=None):
     compressed_model = model
     ranks = [60, 3]
     for idx in range(2):
-        compressed_model = get_compressed_model(compressed_model, {
+        compressed_model = get_compressed_sequential(compressed_model, {
             'conv2d': ('cp3', ranks[idx]),
         })
 

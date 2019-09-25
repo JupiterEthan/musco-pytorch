@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow import keras
-from compress_model import get_compressed_model
+from compress_model import get_compressed_sequential
 
 
 def test_svd(take_first=None):
@@ -36,7 +36,7 @@ def test_svd(take_first=None):
     test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=0)
     print('Test accuracy:', test_acc)
 
-    compressed_model = get_compressed_model(model, {
+    compressed_model = get_compressed_sequential(model, {
                 'dense': ('svd', 750),
     })
 
@@ -108,7 +108,7 @@ def test_cp3(take_first=None):
                                          verbose=0)
     print('Test accuracy:', test_acc)
 
-    compressed_model = get_compressed_model(model, {
+    compressed_model = get_compressed_sequential(model, {
         'conv2d': ('cp3', 50),
     })
 
