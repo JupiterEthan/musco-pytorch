@@ -6,7 +6,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 from compressor import construct_compressor
-from rank_selection import estimate_rank_for_compression_rate
+from rank_selection import estimate_rank_for_compression_rate, estimate_vbmf_ranks
 from utils import to_tf_kernel_order, to_pytorch_kernel_order
 
 
@@ -175,7 +175,7 @@ def get_config(layer, copy_conf):
     return confs
 
 
-def get_rank(rank, cin, cout, kernel_size, **kwargs):
+def get_rank(layer, rank, cin, cout, kernel_size, vbmf=False, vbmf_weaken_factor=1.0, weight=None, **kwargs):
     """
 
     :param rank:
@@ -185,7 +185,10 @@ def get_rank(rank, cin, cout, kernel_size, **kwargs):
     :param kwargs:
     :return:
     """
-    return estimate_rank_for_compression_rate((cout, cin, *kernel_size), rate=rank[0], key='tucker2')
+    if vbmf:
+        return estimate_vbmf_ranks(layer.get_weights()[0], vbmf_weaken_factor)
+    else:
+        return estimate_rank_for_compression_rate((cout, cin, *kernel_size), rate=rank[0], key='tucker2')
 
 
 get_tucker2_seq = construct_compressor(get_conv_params,

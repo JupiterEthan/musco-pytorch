@@ -12,7 +12,7 @@ from svd_decomposition import get_svd_seq
 from tucker2_decomposition import get_tucker2_seq
 
 
-def get_compressed_model(model, decompose_info, optimize_rank=False):
+def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, vbmf_weaken_factor=0.8):
     """Compresses source model using decompositions from decompose_info dict.
 
     For example if decompose_info = {
@@ -60,7 +60,9 @@ def get_compressed_model(model, decompose_info, optimize_rank=False):
             logging.info('Tucker2 layer {}'.format(layer.name))
             new_layer = get_tucker2_seq(layer,
                                         rank=decomp_rank,
-                                        optimize_rank=optimize_rank)
+                                        optimize_rank=optimize_rank,
+                                        vbmf=vbmf,
+                                        vbmf_weaken_factor=vbmf_weaken_factor)
         else:
             logging.info('Incorrect decomposition type for the layer {}'.format(layer.name))
             raise NameError("Wrong Decomposition Name. You should use one of: ['svd', 'cp3', 'cp4', 'tucker-2']")

@@ -190,7 +190,7 @@ def get_config(layer, copy_conf):
     return confs
 
 
-def get_rank(rank, cin, cout, kernel_size, **kwargs):
+def get_rank(layer, rank, cin, cout, kernel_size, **kwargs):
     """
 
     :param rank:

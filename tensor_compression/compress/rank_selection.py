@@ -26,9 +26,9 @@ def estimate_vbmf_ranks(weights, k=1):
     if len(weights.shape) > 2:
         unfold_0 = tl.base.unfold(weights, 0)
         unfold_1 = tl.base.unfold(weights, 1)
-        if unfold_0.is_cuda:
-            unfold_0 = unfold_0.cpu()
-            unfold_1 = unfold_1.cpu()
+        # if unfold_0.is_cuda:
+        #     unfold_0 = unfold_0.cpu()
+        #     unfold_1 = unfold_1.cpu()
         # if 'cuda' in unfold_0.device: 
         _, diag_0, _, _ = VBMF.EVBMF(unfold_0)
         _, diag_1, _, _ = VBMF.EVBMF(unfold_1)
@@ -39,8 +39,8 @@ def estimate_vbmf_ranks(weights, k=1):
 
     else:
         unfold = weights.data
-        if unfold.is_cuda:
-            unfold = unfold.cpu()
+        # if unfold.is_cuda:
+        #     unfold = unfold.cpu()
         unfold = unfold.numpy()
         try:
             _, diag, _, _ = VBMF.EVBMF(unfold)
