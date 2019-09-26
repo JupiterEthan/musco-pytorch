@@ -186,9 +186,11 @@ def get_rank(layer, rank, cin, cout, kernel_size, vbmf=False, vbmf_weaken_factor
     :return:
     """
     if vbmf:
-        return estimate_vbmf_ranks(layer.get_weights()[0], vbmf_weaken_factor)
+        return estimate_vbmf_ranks(to_pytorch_kernel_order(layer.get_weights()[0]), vbmf_weaken_factor)
     else:
-        return estimate_rank_for_compression_rate((cout, cin, *kernel_size), rate=rank[0], key='tucker2')
+        return estimate_rank_for_compression_rate((cout, cin, *kernel_size),
+                                                  rate=rank[0],
+                                                  key='tucker2')
 
 
 get_tucker2_seq = construct_compressor(get_conv_params,

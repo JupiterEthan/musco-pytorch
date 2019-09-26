@@ -4,6 +4,8 @@ import tensorflow as tf
 from tensorflow import keras
 from compress_model import get_compressed_sequential, get_compressed_model
 
+from tensorflow.keras.applications import ResNet50
+
 np.random.seed(42)
 
 
@@ -362,9 +364,23 @@ def test_tucker2_model_compress(take_first=1000):
         print(layer.name)
 
 
+def test_resnet50():
+    resnet50 = ResNet50()
+    decompose_info = {
+        "conv1": ("tucker2", (64, 64)),
+        "res2a_branch2a": ("tucker2", (64, 64)),
+        "res2a_branch2b": ("tucker2", (64, 64))
+    }
+    resnet50.summary()
+
+    model_compressed = get_compressed_model(resnet50, decompose_info, optimize_rank=True, vbmf=True, vbmf_weaken_factor=0.8)
+    model_compressed.summary()
+
+
 #TODO: write regular tests
 if __name__ == "__main__":
     # test_tucker2(1000)
     # test_tucker2_seq(1000)
     # test_tucker2_optimize_rank(1000)
-    test_tucker2_model_compress(1000)
+    # test_tucker2_model_compress(1000)
+    test_resnet50()

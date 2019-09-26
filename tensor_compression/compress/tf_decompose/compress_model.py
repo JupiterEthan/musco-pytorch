@@ -74,7 +74,7 @@ def get_compressed_sequential(model, decompose_info, optimize_rank=False, vbmf=T
     return new_model
 
 
-def insert_layer_nonseq(model, layer_regex, insert_layer_factory,
+def insert_layer_nonseq(model, layer_regexs,
                         insert_layer_name=None, position='after'):
     # Auxiliary dictionary to describe the network graph
     network_dict = {'input_layers_of': {}, 'new_output_tensor_of': {}}
@@ -83,6 +83,7 @@ def insert_layer_nonseq(model, layer_regex, insert_layer_factory,
     for layer in model.layers:
         for node in layer.outbound_nodes:
             layer_name = node.outbound_layer.name
+
             if layer_name not in network_dict['input_layers_of']:
                 network_dict['input_layers_of'].update(
                     {layer_name: [layer.name]})
@@ -93,9 +94,10 @@ def insert_layer_nonseq(model, layer_regex, insert_layer_factory,
     network_dict['new_output_tensor_of'].update(
         {model.layers[0].name: model.input})
 
+    last_layer = model.layers[0]
     # Iterate over all layers after the input
-    for layer in model.layers[1:]:
 
+    for layer in model.layers[1:]:
         # Determine input tensors
         layer_input = [network_dict['new_output_tensor_of'][layer_aux]
                        for layer_aux in network_dict['input_layers_of'][layer.name]]
@@ -103,7 +105,12 @@ def insert_layer_nonseq(model, layer_regex, insert_layer_factory,
             layer_input = layer_input[0]
 
         # Insert layer if name matches the regular expression
-        if re.match(layer_regex, layer.name):
+        changed = False
+        for layer_regex, new_layer in layer_regexs.items():
+            if not re.match(layer_regex, layer.name):
+                continue
+
+            changed = True
             if position == 'replace':
                 x = layer_input
             elif position == 'after':
@@ -113,49 +120,61 @@ def insert_layer_nonseq(model, layer_regex, insert_layer_factory,
             else:
                 raise ValueError('position must be: before, after or replace')
 
-            new_layer = insert_layer_factory()
             x = new_layer(x)
+            last_layer = new_layer
             print('Layer {} inserted after layer {}'.format(new_layer.name,
                                                             layer.name))
             if position == 'before':
                 x = layer(x)
-        else:
+                last_layer = layer
+            break
+        if not changed:
             x = layer(layer_input)
+            last_layer = layer
 
         # Set new output tensor (the original one, or the one of the inserted
         # layer)
         network_dict['new_output_tensor_of'].update({layer.name: x})
 
-    return Model(inputs=model.inputs, outputs=x)
+    return Model(inputs=model.inputs, outputs=last_layer.output)
 
 
 def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, vbmf_weaken_factor=0.8):
     new_model = model
+    changed = False
 
+    layer_regexs = dict()
     for idx, layer in enumerate(model.layers[1:]):
         if layer.name not in decompose_info:
             continue
+
+        # from pathlib import Path
+
+        # model_file = Path("./test.h5")
+        # if model_file.exists() and changed:
+        #     new_model.load_weights("./test.h5")
 
         decompose, decomp_rank = decompose_info[layer.name]
 
         insert_layer_factory = None
         if decompose.lower() == 'svd':
-            insert_layer_factory = lambda: get_svd_seq(layer, rank=decomp_rank)
+            insert_layer_factory = get_svd_seq(layer, rank=decomp_rank)
         elif decompose.lower() == 'cp3':
-            insert_layer_factory = lambda: get_cp3_seq(layer,
+            insert_layer_factory = get_cp3_seq(layer,
                                                        rank=decomp_rank,
                                                        optimize_rank=optimize_rank)
         elif decompose.lower() == 'cp4':
-            insert_layer_factory = lambda: get_cp4_seq(layer,
+            insert_layer_factory = get_cp4_seq(layer,
                                                        rank=decomp_rank,
                                                        optimize_rank=optimize_rank)
         elif decompose.lower() == 'tucker2':
-            insert_layer_factory = lambda: get_tucker2_seq(layer,
+            layer_regexs[layer.name] = get_tucker2_seq(layer,
                                                            rank=decomp_rank,
                                                            optimize_rank=optimize_rank,
                                                            vbmf=vbmf,
                                                            vbmf_weaken_factor=vbmf_weaken_factor)
 
-        new_model = insert_layer_nonseq(new_model, layer.name, insert_layer_factory,
-                                        insert_layer_name=None, position='replace')
+    new_model = insert_layer_nonseq(new_model, layer_regexs,
+                                    insert_layer_name=None, position='replace')
+
     return new_model
