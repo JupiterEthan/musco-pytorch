@@ -74,8 +74,7 @@ def get_compressed_sequential(model, decompose_info, optimize_rank=False, vbmf=T
     return new_model
 
 
-def insert_layer_nonseq(model, layer_regexs,
-                        insert_layer_name=None, position='after'):
+def insert_layer_nonseq(model, layer_regexs, position='after'):
     # Auxiliary dictionary to describe the network graph
     network_dict = {'input_layers_of': {}, 'new_output_tensor_of': {}}
 
@@ -148,31 +147,24 @@ def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, 
         if layer.name not in decompose_info:
             continue
 
-        # from pathlib import Path
-
-        # model_file = Path("./test.h5")
-        # if model_file.exists() and changed:
-        #     new_model.load_weights("./test.h5")
-
         decompose, decomp_rank = decompose_info[layer.name]
 
-        insert_layer_factory = None
         if decompose.lower() == 'svd':
-            insert_layer_factory = get_svd_seq(layer, rank=decomp_rank)
+            layer_regexs[layer.name] = get_svd_seq(layer, rank=decomp_rank)
         elif decompose.lower() == 'cp3':
-            insert_layer_factory = get_cp3_seq(layer,
+            layer_regexs[layer.name] = get_cp3_seq(layer,
                                                        rank=decomp_rank,
                                                        optimize_rank=optimize_rank)
         elif decompose.lower() == 'cp4':
-            insert_layer_factory = get_cp4_seq(layer,
+            layer_regexs[layer.name] = get_cp4_seq(layer,
                                                        rank=decomp_rank,
                                                        optimize_rank=optimize_rank)
         elif decompose.lower() == 'tucker2':
             layer_regexs[layer.name] = get_tucker2_seq(layer,
-                                                           rank=decomp_rank,
-                                                           optimize_rank=optimize_rank,
-                                                           vbmf=vbmf,
-                                                           vbmf_weaken_factor=vbmf_weaken_factor)
+                                                       rank=decomp_rank,
+                                                       optimize_rank=optimize_rank,
+                                                       vbmf=vbmf,
+                                                       vbmf_weaken_factor=vbmf_weaken_factor)
 
     new_model = insert_layer_nonseq(new_model, layer_regexs,
                                     insert_layer_name=None, position='replace')

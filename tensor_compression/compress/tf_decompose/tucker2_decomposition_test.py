@@ -376,6 +376,19 @@ def test_resnet50():
     model_compressed = get_compressed_model(resnet50, decompose_info, optimize_rank=True, vbmf=True, vbmf_weaken_factor=0.8)
     model_compressed.summary()
 
+    decompose_info = {
+        "conv1": ("tucker2", (50, 50)),
+        "res2a_branch2a": ("tucker2", (50, 50)),
+        "res2a_branch2b": ("tucker2", (50, 50))
+    }
+
+    model_compressed = get_compressed_model(model_compressed,
+                                            decompose_info,
+                                            optimize_rank=True,
+                                            vbmf=True,
+                                            vbmf_weaken_factor=0.8)
+    model_compressed.summary()
+
 
 #TODO: write regular tests
 if __name__ == "__main__":
