@@ -105,6 +105,7 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
 
         # Insert layer if name matches the regular expression
         changed = False
+        # print("!!!!", layer.name)
         for layer_regex, new_layer in layer_regexs.items():
             if layer_regex!=layer.name:
                 continue
@@ -118,7 +119,7 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
                 pass
             else:
                 raise ValueError('position must be: before, after or replace')
-            print("############", type(new_layer))
+            # print("############", type(new_layer))
             if isinstance(x, list):
                 x = x[-1]
             x = new_layer(x)
@@ -133,6 +134,8 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
         if not changed:
             if isinstance(layer_input, list) and not isinstance(layer, keras.layers.Add):
                 layer_input = layer_input[-1]
+            if isinstance(layer, keras.layers.Add):
+               layer_input = layer_input[len(layer_input)//2:]
             x = layer(layer_input)
             last_layer = layer
 
