@@ -364,7 +364,7 @@ def test_tucker2_model_compress(take_first=1000):
         print(layer.name)
 
 
-def test_resnet50(take_first=None):
+def test_resnet50():
     resnet50 = ResNet50()
 
     decompose_info = {
@@ -385,10 +385,46 @@ def test_resnet50(take_first=None):
                                             vbmf=True,
                                             vbmf_weaken_factor=0.8)
 
+
+def test_resnet50_pretrained():
+    from keras.datasets import cifar10
+
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+
+    x_train = x_train.astype(np.float32) / 255
+    x_test = x_test.astype(np.float32) / 255
+
+    y_train = keras.utils.to_categorical(y_train, 10)
+    y_test = keras.utils.to_categorical(y_test, 10)
+
+    x_test, x_val = x_test[:8000], x_test[8000:]
+    y_test, y_val = y_test[:8000], y_test[8000:]
+
+    model = ResNet50(include_top=True, input_shape=(32, 32, 3), pooling=None, classes=10)
+
+    model.compile(optimizer=keras.optimizers.Adam(lr=0.00001), loss="categorical_crossentropy", metrics=["accuracy"])
+
+    callbacks = [
+        keras.callbacks.ReduceLROnPlateau(monitor="val_loss", mode="min", factor=0.4, patience=3, min_lr=0.00001),
+        keras.callbacks.ModelCheckpoint("best.hdf5", save_best_only=True, save_weights_only=False, monitor="val_loss",
+                                        mode="min")
+    ]
+
+    model.fit(x_train, y_train, batch_size=128, epochs=100, validation_data=(x_val, y_val), shuffle=True,
+              callbacks=callbacks)
+
+
+
+
 #TODO: write regular tests
 if __name__ == "__main__":
+    import pip
+
+    # pip.main(['install', 'tensrflow==1.13.1'])
+    print("!!!!", tf.__version__)
     # test_tucker2(1000)
     # test_tucker2_seq(1000)
     # test_tucker2_optimize_rank(1000)
     # test_tucker2_model_compress(1000)
-    test_resnet50(1000)
+    test_resnet50()
+    # test_resnet50_pretrained()
