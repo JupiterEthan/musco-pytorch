@@ -118,6 +118,9 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
                 pass
             else:
                 raise ValueError('position must be: before, after or replace')
+            print("############", type(new_layer))
+            if isinstance(x, list):
+                x = x[-1]
             x = new_layer(x)
             last_layer = new_layer
             print('Layer {} inserted after layer {}'.format(new_layer.name,
@@ -127,6 +130,8 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
                 last_layer = layer
             break
         if not changed:
+            if isinstance(layer_input, list) and not isinstance(layer, keras.layers.Add):
+                layer_input = layer_input[-1]
             x = layer(layer_input)
             last_layer = layer
 
