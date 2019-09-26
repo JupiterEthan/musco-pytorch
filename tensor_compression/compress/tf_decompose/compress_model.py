@@ -118,7 +118,6 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
                 pass
             else:
                 raise ValueError('position must be: before, after or replace')
-
             x = new_layer(x)
             last_layer = new_layer
             print('Layer {} inserted after layer {}'.format(new_layer.name,
@@ -166,7 +165,6 @@ def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, 
                                                        vbmf=vbmf,
                                                        vbmf_weaken_factor=vbmf_weaken_factor)
 
-    new_model = insert_layer_nonseq(new_model, layer_regexs,
-                                    insert_layer_name=None, position='replace')
+    new_model = insert_layer_nonseq(new_model, layer_regexs, position='replace')
 
     return new_model
