@@ -1,6 +1,13 @@
 """General utils for layer compressors."""
 
 import numpy as np
+import tensorflow as tf
+import sys
+from tensorflow.python.platform import gfile
+
+from tensorflow.core.protobuf import saved_model_pb2
+from tensorflow.python.util import compat
+
 
 
 def to_tf_kernel_order(tensor):
@@ -31,3 +38,26 @@ def del_keys(src_dict, del_keys):
     :return: the copy of dict without keys from del_keys.
     """
     return {key: value for key, value in src_dict.items() if key not in del_keys}
+
+
+def freeze_model(output_node_name, folder, pb_name):
+    sess = tf.keras.backend.get_session()
+    constant_graph = tf.graph_util.convert_variables_to_constants(sess, tf.get_default_graph().as_graph_def(),
+                                                                  [output_node_name])
+    tf.train.write_graph(constant_graph, folder, pb_name, as_text=False)
+
+
+def pb_to_tenorboard(model_filename, logdir_path):
+    with tf.Session() as sess:
+        with gfile.FastGFile(model_filename, 'rb') as f:
+            data = compat.as_bytes(f.read())
+            sm = saved_model_pb2.SavedModel()
+            sm.ParseFromString(data)
+
+            if 1 != len(sm.meta_graphs):
+                print('More than one graph found. Not sure which to write')
+                sys.exit(1)
+            g_in = tf.import_graph_def(sm.meta_graphs[0].graph_def)
+
+        train_writer = tf.summary.FileWriter(logdir_path)
+        train_writer.add_graph(sess.graph)

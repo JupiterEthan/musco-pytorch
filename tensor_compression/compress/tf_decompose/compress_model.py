@@ -1,8 +1,6 @@
 """
 This module contains functions for compressing fully-connected and conv layers.
 """
-import re
-
 from absl import logging
 from tensorflow.keras.models import Model
 from tensorflow import keras
@@ -74,7 +72,7 @@ def get_compressed_sequential(model, decompose_info, optimize_rank=False, vbmf=T
     return new_model
 
 
-def insert_layer_nonseq(model, layer_regexs, position='after'):
+def insert_layer_nonseq(model, layer_regexs, iteration):
     # Auxiliary dictionary to describe the network graph
     network_dict = {'input_layers_of': {}, 'new_output_tensor_of': {}}
 
@@ -93,60 +91,51 @@ def insert_layer_nonseq(model, layer_regexs, position='after'):
     network_dict['new_output_tensor_of'].update(
         {model.layers[0].name: model.input})
 
-    last_layer = model.layers[0]
     # Iterate over all layers after the input
+    is_compressed = any([l.name.endswith("_seq") for l in model.layers])
 
     for layer in model.layers[1:]:
         # Determine input tensors
         layer_input = [network_dict['new_output_tensor_of'][layer_aux]
                        for layer_aux in network_dict['input_layers_of'][layer.name]]
+
         if len(layer_input) == 1:
             layer_input = layer_input[0]
 
         # Insert layer if name matches the regular expression
         changed = False
-        # print("!!!!", layer.name)
         for layer_regex, new_layer in layer_regexs.items():
-            if layer_regex!=layer.name:
-                continue
+            if is_compressed:
+                if layer_regex + "_seq" != layer.name:
+                    continue
+            else:
+                if layer_regex != layer.name:
+                    continue
 
             changed = True
-            if position == 'replace':
-                x = layer_input
-            elif position == 'after':
-                x = layer(layer_input)
-            elif position == 'before':
-                pass
-            else:
-                raise ValueError('position must be: before, after or replace')
-            # print("############", type(new_layer))
-            if isinstance(x, list):
-                x = x[-1]
-            x = new_layer(x)
-            last_layer = new_layer
-            print('Layer {} inserted after layer {}'.format(new_layer.name,
-                                                            layer.name))
-            if position == 'before':
-                x = layer(x)
-                last_layer = layer
+            x = new_layer(layer_input)
+            print('Layer {} replace layer {}'.format(new_layer.name,
+                                                     layer.name))
             break
 
         if not changed:
-            if isinstance(layer_input, list) and not isinstance(layer, keras.layers.Add):
-                layer_input = layer_input[-1]
-            if isinstance(layer, keras.layers.Add):
-               layer_input = layer_input[len(layer_input)//2:]
+            if isinstance(layer_input, list) and is_compressed:
+                layer_input = layer_input[-len(layer_input) // (iteration + 1):]
+                if len(layer_input) == 1:
+                    layer_input = layer_input[0]
             x = layer(layer_input)
-            last_layer = layer
 
-        # Set new output tensor (the original one, or the one of the inserted
-        # layer)
         network_dict['new_output_tensor_of'].update({layer.name: x})
 
-    return Model(inputs=model.inputs, outputs=last_layer.output)
+    return Model(inputs=model.inputs, outputs=x)
 
 
-def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, vbmf_weaken_factor=0.8):
+def get_compressed_model(model,
+                         decompose_info,
+                         optimize_rank=False,
+                         vbmf=True,
+                         vbmf_weaken_factor=0.8,
+                         iteration=1):
     new_model = model
     changed = False
 
@@ -161,12 +150,12 @@ def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, 
             layer_regexs[layer.name] = get_svd_seq(layer, rank=decomp_rank)
         elif decompose.lower() == 'cp3':
             layer_regexs[layer.name] = get_cp3_seq(layer,
-                                                       rank=decomp_rank,
-                                                       optimize_rank=optimize_rank)
+                                                   rank=decomp_rank,
+                                                   optimize_rank=optimize_rank)
         elif decompose.lower() == 'cp4':
             layer_regexs[layer.name] = get_cp4_seq(layer,
-                                                       rank=decomp_rank,
-                                                       optimize_rank=optimize_rank)
+                                                   rank=decomp_rank,
+                                                   optimize_rank=optimize_rank)
         elif decompose.lower() == 'tucker2':
             layer_regexs[layer.name] = get_tucker2_seq(layer,
                                                        rank=decomp_rank,
@@ -174,6 +163,6 @@ def get_compressed_model(model, decompose_info, optimize_rank=False, vbmf=True, 
                                                        vbmf=vbmf,
                                                        vbmf_weaken_factor=vbmf_weaken_factor)
 
-    new_model = insert_layer_nonseq(new_model, layer_regexs, position='replace')
+    new_model = insert_layer_nonseq(new_model, layer_regexs, iteration=iteration)
 
     return new_model

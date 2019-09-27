@@ -148,8 +148,9 @@ def get_layers_params_for_factors(cout, rank, kernel_size, padding, strides, bat
          'activation': activation}
     ]
 
-    print("!!!!!!", batch_input_shape)
+
     if batch_input_shape is not None:
+
         params[0]['batch_input_shape'] = batch_input_shape
 
     return new_layers, params

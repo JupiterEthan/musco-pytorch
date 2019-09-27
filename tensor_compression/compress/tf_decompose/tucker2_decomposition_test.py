@@ -6,6 +6,8 @@ from compress_model import get_compressed_sequential, get_compressed_model
 
 from tensorflow.keras.applications import ResNet50
 
+from utils import freeze_model
+
 np.random.seed(42)
 
 
@@ -346,7 +348,6 @@ def test_tucker2_model_compress(take_first=1000):
     compressed_model = get_compressed_model(model, {
         'conv_2': ('tucker2', (50, 50)),
     }, optimize_rank=True, vbmf=True, vbmf_weaken_factor=0.8)
-    # compressed_model = model
 
     compressed_model.compile(optimizer='adam',
                              loss='sparse_categorical_crossentropy',
@@ -364,56 +365,73 @@ def test_tucker2_model_compress(take_first=1000):
         print(layer.name)
 
 
+
 def test_resnet50():
     resnet50 = ResNet50()
-
+    print(resnet50.input, resnet50.output)
+    # resnet50.summary()
     decompose_info = {
         "conv1": ("tucker2", (64, 64)),
         "res2a_branch2a": ("tucker2", (64, 64)),
         "res2a_branch2b": ("tucker2", (64, 64))
     }
-    model_compressed = get_compressed_model(resnet50, decompose_info, optimize_rank=True, vbmf=True, vbmf_weaken_factor=0.8)
+    model_compressed = resnet50
+    for idx in range(3):
+        model_compressed = get_compressed_model(model_compressed,
+                                                decompose_info,
+                                                optimize_rank=True,
+                                                vbmf=True,
+                                                vbmf_weaken_factor=1.0,
+                                                iteration=idx)
 
-    decompose_info = {
-        "conv1": ("tucker2", (50, 50)),
-        "res2a_branch2a": ("tucker2", (50, 50)),
-        "res2a_branch2b": ("tucker2", (50, 50))
-    }
-    model_compressed = get_compressed_model(model_compressed,
-                                            decompose_info,
-                                            optimize_rank=True,
-                                            vbmf=True,
-                                            vbmf_weaken_factor=0.8)
+    model_compressed.compile(optimizer='adam',
+                             loss='sparse_categorical_crossentropy',
+                             metrics=['accuracy'])
 
+    freeze_model('fc1000_1/Softmax', "final", "./model.pb")
 
 def test_resnet50_pretrained():
     from keras.datasets import cifar10
 
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
-    x_train = x_train.astype(np.float32) / 255
-    x_test = x_test.astype(np.float32) / 255
+    x_train = np.random.random(size=(100, 224, 224, 3))
+    x_test = np.random.random(size=(20, 224, 224, 3))
 
-    y_train = keras.utils.to_categorical(y_train, 10)
-    y_test = keras.utils.to_categorical(y_test, 10)
+    y_train = keras.utils.to_categorical(y_train[:100], 10)
+    y_test = keras.utils.to_categorical(y_test[:20], 10)
 
-    x_test, x_val = x_test[:8000], x_test[8000:]
-    y_test, y_val = y_test[:8000], y_test[8000:]
-
-    model = ResNet50(include_top=True, input_shape=(32, 32, 3), pooling=None, classes=10)
+    model = ResNet50(include_top=True, weights=None, pooling=None, classes=10)
 
     model.compile(optimizer=keras.optimizers.Adam(lr=0.00001), loss="categorical_crossentropy", metrics=["accuracy"])
 
     callbacks = [
         keras.callbacks.ReduceLROnPlateau(monitor="val_loss", mode="min", factor=0.4, patience=3, min_lr=0.00001),
-        keras.callbacks.ModelCheckpoint("best.hdf5", save_best_only=True, save_weights_only=False, monitor="val_loss",
-                                        mode="min")
+        keras.callbacks.TensorBoard(log_dir="./test_model")
     ]
 
-    model.fit(x_train, y_train, batch_size=128, epochs=100, validation_data=(x_val, y_val), shuffle=True,
-              callbacks=callbacks)
+    model.fit(x_train, y_train, batch_size=128, epochs=1, validation_data=(x_test, y_test), shuffle=True, callbacks=callbacks)
 
+    # decompose_info = {
+    #     "conv1": ("tucker2", (50, 50)),
+    #     "res2a_branch2a": ("tucker2", (50, 50)),
+    #     "res2a_branch2b": ("tucker2", (50, 50))
+    # }
+    # model_compressed = get_compressed_model(model,
+    #                                         decompose_info,
+    #                                         optimize_rank=True,
+    #                                         vbmf=True,
+    #                                         vbmf_weaken_factor=1.0)
+    #
+    # model_compressed.compile(optimizer=keras.optimizers.Adam(lr=0.00001), loss="categorical_crossentropy", metrics=["accuracy"])
+    # model_compressed.fit(x_train, y_train, batch_size=128, epochs=1, validation_data=(x_test, y_test), shuffle=True,
+    #           callbacks=callbacks)
 
+    # model_compressed = get_compressed_model(resnet50,
+    #                                         decompose_info,
+    #                                         optimize_rank=True,
+    #                                         vbmf=True,
+    #                                         vbmf_weaken_factor=1.0)
 
 
 #TODO: write regular tests
@@ -425,6 +443,6 @@ if __name__ == "__main__":
     # test_tucker2(1000)
     # test_tucker2_seq(1000)
     # test_tucker2_optimize_rank(1000)
-    # test_tucker2_model_compress(1000)
-    test_resnet50()
+    test_tucker2_model_compress(1000)
+    # test_resnet50()
     # test_resnet50_pretrained()
