@@ -47,7 +47,7 @@ def freeze_model(output_node_name, folder, pb_name):
     tf.train.write_graph(constant_graph, folder, pb_name, as_text=False)
 
 
-def pb_to_tenorboard(model_filename, logdir_path):
+def pb_to_tensorboard(model_filename, logdir_path):
     with tf.Session() as sess:
         with gfile.FastGFile(model_filename, 'rb') as f:
             data = compat.as_bytes(f.read())
@@ -61,3 +61,4 @@ def pb_to_tenorboard(model_filename, logdir_path):
 
         train_writer = tf.summary.FileWriter(logdir_path)
         train_writer.add_graph(sess.graph)
+

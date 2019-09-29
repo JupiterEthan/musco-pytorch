@@ -39,7 +39,7 @@ def del_redundant_keys(dict_1, dict_2):
     return dict_1
 
 
-def build_sequence(layer, weights, biases, layer_classes, layer_confs, confs, new_layer_suffix="_seq"):
+def build_sequence(layer, weights, biases, layer_classes, layer_confs, confs, new_layer_suffix=""):
     layer_seq = keras.Sequential(name=layer.name + new_layer_suffix)
     for idx, (weight, bias, layer_class, layer_conf, conf) in enumerate(zip(weights, biases, layer_classes, layer_confs, confs)):
         conf = del_redundant_keys(conf, layer_conf)

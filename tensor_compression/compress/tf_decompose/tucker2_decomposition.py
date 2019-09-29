@@ -31,8 +31,8 @@ def get_conv_params(layer):
         if 'batch_input_shape' in conf_1:
             batch_input_shape = conf_1['batch_input_shape']
 
-        cin = layer_1.input_shape[-1] if layer_1.data_format == 'channels_last' else layer_1.input_shape[0]
-        cout = layer_3.output_shape[-1] if layer_3.data_format == 'channels_last' else layer_3.output_shape[0]
+        cin = layer.input_shape[-1] if layer.layers[0].data_format == 'channels_last' else layer.input_shape[0]
+        cout = layer.output_shape[-1] if layer.layers[0].data_format == 'channels_last' else layer.output_shape[0]
 
         kernel_size = conf_2['kernel_size']
         padding = conf_2['padding']
@@ -188,7 +188,10 @@ def get_rank(layer, rank, cin, cout, kernel_size, vbmf=False, vbmf_weaken_factor
     :return:
     """
     if vbmf:
-        return estimate_vbmf_ranks(to_pytorch_kernel_order(layer.get_weights()[0]), vbmf_weaken_factor)
+        if isinstance(layer, keras.Sequential):
+            return estimate_vbmf_ranks(to_pytorch_kernel_order(layer.get_weights()[1]), vbmf_weaken_factor)
+        else:
+            return estimate_vbmf_ranks(to_pytorch_kernel_order(layer.get_weights()[0]), vbmf_weaken_factor)
     else:
         return estimate_rank_for_compression_rate((cout, cin, *kernel_size),
                                                   rate=rank[0],

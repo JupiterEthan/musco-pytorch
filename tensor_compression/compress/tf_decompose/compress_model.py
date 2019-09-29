@@ -1,6 +1,8 @@
 """
 This module contains functions for compressing fully-connected and conv layers.
 """
+import tensorflow as tf
+
 from absl import logging
 from tensorflow.keras.models import Model
 from tensorflow import keras
@@ -9,6 +11,8 @@ from cp3_decomposition import get_cp3_seq
 from cp4_decomposition import get_cp4_seq
 from svd_decomposition import get_svd_seq
 from tucker2_decomposition import get_tucker2_seq
+
+# from utils import get_subgraph
 
 
 def get_compressed_sequential(model, decompose_info, optimize_rank=False, vbmf=True, vbmf_weaken_factor=0.8):
@@ -72,7 +76,7 @@ def get_compressed_sequential(model, decompose_info, optimize_rank=False, vbmf=T
     return new_model
 
 
-def insert_layer_nonseq(model, layer_regexs, iteration):
+def insert_layer_nonseq(model, layer_regexs):
     # Auxiliary dictionary to describe the network graph
     network_dict = {'input_layers_of': {}, 'new_output_tensor_of': {}}
 
@@ -92,9 +96,12 @@ def insert_layer_nonseq(model, layer_regexs, iteration):
         {model.layers[0].name: model.input})
 
     # Iterate over all layers after the input
-    is_compressed = any([l.name.endswith("_seq") for l in model.layers])
-
+    conenctions = dict({model.layers[0].name: (model.layers[0].__class__,
+                                               model.layers[0].get_config(),
+                                               None)})
+    layers_order = [model.layers[0].name]
     for layer in model.layers[1:]:
+        added_layer = None
         # Determine input tensors
         layer_input = [network_dict['new_output_tensor_of'][layer_aux]
                        for layer_aux in network_dict['input_layers_of'][layer.name]]
@@ -105,37 +112,59 @@ def insert_layer_nonseq(model, layer_regexs, iteration):
         # Insert layer if name matches the regular expression
         changed = False
         for layer_regex, new_layer in layer_regexs.items():
-            if is_compressed:
-                if layer_regex + "_seq" != layer.name:
-                    continue
-            else:
-                if layer_regex != layer.name:
-                    continue
+            if layer_regex != layer.name:
+                continue
 
             changed = True
             x = new_layer(layer_input)
             print('Layer {} replace layer {}'.format(new_layer.name,
                                                      layer.name))
+            added_layer = new_layer
             break
 
         if not changed:
-            if isinstance(layer_input, list) and is_compressed:
-                layer_input = layer_input[-len(layer_input) // (iteration + 1):]
-                if len(layer_input) == 1:
-                    layer_input = layer_input[0]
             x = layer(layer_input)
+            added_layer = layer
+
+        conenctions[added_layer.name] = (added_layer.__class__,
+                                         added_layer.get_config(),
+                                         added_layer.get_weights())
+        layers_order.append(added_layer.name)
+        network_dict['new_output_tensor_of'].update({layer.name: x})
+
+
+     # reconstruct graph
+    tf.reset_default_graph()
+    # tf.keras.backend.get_session().close()
+    new_sess = tf.Session()
+    tf.keras.backend.set_session(new_sess)
+
+    input_constructor, input_conf, _ = conenctions[layers_order[0]]
+    new_model_input = input_constructor.from_config(input_conf)
+    network_dict['new_output_tensor_of'] = {new_model_input.name: new_model_input.input}
+
+    for layer_name in layers_order[1:]:
+        # Determine input tensors
+        l_constuctor, l_conf, l_weights = conenctions[layer_name]
+        layer = l_constuctor.from_config(l_conf)
+
+        layer_input = [network_dict['new_output_tensor_of'][layer_aux]
+                       for layer_aux in network_dict['input_layers_of'][layer_name]]
+        if len(layer_input) == 1:
+            layer_input = layer_input[0]
+        x = layer(layer_input)
+        layer.set_weights(l_weights)
 
         network_dict['new_output_tensor_of'].update({layer.name: x})
 
-    return Model(inputs=model.inputs, outputs=x)
+    return Model(inputs=new_model_input.input, outputs=x)
 
 
 def get_compressed_model(model,
                          decompose_info,
                          optimize_rank=False,
                          vbmf=True,
-                         vbmf_weaken_factor=0.8,
-                         iteration=1):
+                         vbmf_weaken_factor=0.8):
     new_model = model
     changed = False
 
@@ -163,6 +192,6 @@ def get_compressed_model(model,
                                                        vbmf=vbmf,
                                                        vbmf_weaken_factor=vbmf_weaken_factor)
 
-    new_model = insert_layer_nonseq(new_model, layer_regexs, iteration=iteration)
+    new_model = insert_layer_nonseq(new_model, layer_regexs)
 
     return new_model
