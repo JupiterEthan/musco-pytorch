@@ -79,7 +79,7 @@ def get_compressed_sequential(model, decompose_info, optimize_rank=False, vbmf=T
 def insert_layer_nonseq(model, layer_regexs):
     # Auxiliary dictionary to describe the network graph
     network_dict = {'input_layers_of': {}, 'new_output_tensor_of': {}}
-
+    current_session = tf.keras.backend.get_session()
     # Set the input layers of each layer
     for layer in model.layers:
         for node in layer.outbound_nodes:
@@ -135,7 +135,6 @@ def insert_layer_nonseq(model, layer_regexs):
 
      # reconstruct graph
     tf.reset_default_graph()
-    # tf.keras.backend.get_session().close()
     new_sess = tf.Session()
     tf.keras.backend.set_session(new_sess)
 
@@ -157,7 +156,10 @@ def insert_layer_nonseq(model, layer_regexs):
 
         network_dict['new_output_tensor_of'].update({layer.name: x})
 
-    return Model(inputs=new_model_input.input, outputs=x)
+    new_model = Model(inputs=new_model_input.input, outputs=x)
+    current_session.close()
+
+    return new_model
 
 
 def get_compressed_model(model,
